@@ -1,16 +1,11 @@
 import asyncio
-import tornado
-from secrets import token_hex
-from authenticator import Authman
-import time
+import json
 import logging
+import tornado
+
+from authenticator import Authman
 
 auth = Authman()
-users = {'cnc': 'lol'}  # WIP
-tasks_by_session_id = {}
-tasks_by_id = {}
-sessions_by_user = {}
-sessions_by_id = {}
 
 logger = logging.Logger('glacier-server')
 logger.setLevel(logging.WARNING)
@@ -28,46 +23,16 @@ def error_msg(message):
     logger.error(message)
 
 
-class Task:
-    def __init__(self, blend_file_path, parent_session):
-        self.id = token_hex(16)
-        self.blend_file_path = blend_file_path
-        self.parent_session = parent_session
-        self.state = 'CREATED'
-        info_msg(f'task {self.id} from user {self.parent_session.username} created')
-
-    def render(self):
-        info_msg(f'task {self.id} from user {self.parent_session.username} called to render')
-
-
-class Session:
-    def __init__(self, username, password):
-        self.id = token_hex(20)
-        self.username = username
-        self.creation_time = time.time()
-        info_msg(f'session {self.id} for user {self.username} created')
-
-    def __del__(self):
-        if self.id in tasks_by_session_id:
-            for task in tasks_by_session_id[self.id]:
-                task_id = task.id
-                tasks_by_id.pop(task_id)
-                del task
-            tasks_by_session_id.pop(self.id)
-            info_msg(f'session {self.id} for user {self.username} deleted')
-
-
 class SessionListHandler(tornado.web.RequestHandler):
     def get(self):
         username = self.get_argument('username')
         password = self.get_argument('password')
         if auth.is_password_correct(username, password):
-            if username in sessions_by_user:
-                sessions_by_user_list = [session.id for session in sessions_by_user[username]]
-                self.write(f'{sessions_by_user_list}')
+            if auth.is_session_by_username(username):
+                sessions_by_user_list = auth.db.get_session_by_username(username)
+                self.write(json.dumps(sessions_by_user_list))
             else:
-                self.set_status(404)
-                self.finish('[]')
+                self.finish(json.dumps([]))
         else:
             self.set_status(400)
             self.finish('400')
@@ -83,10 +48,9 @@ class SessionRemoveHandler(tornado.web.RequestHandler):
             self.set_status(404)
             self.finish('404')
             return
-        if username in sessions_by_user:
-            if session_id in sessions_by_user[username]:
-                sessions_by_user.pop(username)
-                sessions_by_id.pop(session_id)
+        if auth.is_session_by_username(username):
+            if auth.is_session(session_id):
+                auth.delete_session(session_id)
                 self.write('200')
         else:
             self.set_status(404)
@@ -99,13 +63,11 @@ class AuthHandler(tornado.web.RequestHandler):
         username = self.get_argument('username')
         password = self.get_argument('password')
         if auth.is_password_correct(username, password):
-            new_session = Session(username, password)
-            if username in sessions_by_user:
-                sessions_by_user[username].append(new_session)
+            if auth.is_session_by_username(username):
+                self.write(json.dumps(auth.db.get_session_by_username(username)[0].id))
             else:
-                sessions_by_user.update({username: [new_session]})
-            sessions_by_id.update({new_session.id: new_session})
-            self.write(f'{new_session.id}')
+                new_session_id = auth.add_session(username)
+                self.write(json.dumps(new_session_id))
         else:
             self.set_status(404)
             self.finish('404')
@@ -113,29 +75,24 @@ class AuthHandler(tornado.web.RequestHandler):
 
 
 class SpawnHandler(tornado.web.RequestHandler):
-    def get(self):  # post
+    def post(self):  # post
         session_id = self.get_argument('session_id')
-        blend_file_path = 'blend'  # ####
-        if session_id not in sessions_by_id:
+        if not auth.is_session(session_id):
             self.set_status(404)
             self.finish('404')
             return
-        new_task = Task(blend_file_path, sessions_by_id[session_id])
-        self.write(f'{new_task.id}')
-        if session_id in tasks_by_session_id and session_id in sessions_by_id:
-            tasks_by_session_id[session_id].append(new_task)
-        else:
-            tasks_by_session_id.update({session_id: [new_task]})
-        tasks_by_id.update({new_task.id: new_task})
+        blend_file = self.request.files['file'][0]
+        new_task_id = auth.add_task(session_id, blend_file)
+        self.write(json.dumps(new_task_id))
 
 
 class StatHandler(tornado.web.RequestHandler):
     def get(self):
         session_id = self.get_argument('session_id')
         task_id = self.get_argument('task_id')
-        if session_id in sessions_by_id and task_id in tasks_by_id:
-            task = tasks_by_id[task_id]
-            self.write(f'{task.state}')
+        if auth.is_session(session_id) and auth.is_task(task_id):
+            task = auth.db.get_task_by_id(task_id)
+            self.write(json.dumps(list(task[0])))
         else:
             self.set_status(404)
             self.finish('404')
@@ -152,12 +109,12 @@ class ResultHandler(tornado.web.RequestHandler):
 class ListHandler(tornado.web.RequestHandler):
     def get(self):
         session_id = self.get_argument('session_id')
-        if session_id in sessions_by_id:
-            if session_id in tasks_by_session_id:
-                self.write(f'{[ task.id for task in tasks_by_session_id[session_id]]}')
+        if auth.is_session(session_id):
+            if auth.is_task_by_session_id(session_id):
+                self.write(json.dumps(auth.db.get_task_by_session_id(session_id)))
                 return
             else:
-                self.write('[]')
+                self.write(json.dumps([]))
                 return
         self.set_status(404)
         self.finish('404')
@@ -175,10 +132,10 @@ def make_app():
     ])
 
 
-async def main():
+async def main_server():
     app = make_app()
     app.listen(8888)
     await asyncio.Event().wait()
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    asyncio.run(main_server())

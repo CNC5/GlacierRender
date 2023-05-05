@@ -43,13 +43,11 @@ class Session(Base):
     username: Mapped[Optional[str]]
     id: Mapped[Optional[str]] = mapped_column(primary_key=True)
     creation_time: Mapped[Optional[str]]
-    task_ids: Mapped[Optional[str]]
 
     def __repr__(self) -> str:
         return f"Session(username={self.username!r}, " \
                f"id={self.id!r}, " \
                f"creation_time={self.creation_time!r}, " \
-               f"task_ids={self.task_ids!r})"
 
 
 class Task(Base):
@@ -57,6 +55,7 @@ class Task(Base):
 
     id: Mapped[Optional[str]] = mapped_column(primary_key=True)
     parent_session_id: Mapped[Optional[str]]
+    username: Mapped[Optional[str]]
     blend_file_path: Mapped[Optional[str]]
     state: Mapped[Optional[str]]
     progress: Mapped[Optional[str]]
@@ -64,6 +63,7 @@ class Task(Base):
     def __repr__(self) -> str:
         return f"Task(id={self.id!r}, " \
                f"parent_session_id={self.parent_session_id!r}, " \
+               f"username={self.username!r}" \
                f"blend_file_path={self.blend_file_path!r}, " \
                f"state={self.state!r}, " \
                f"progress={self.progress!r})"
@@ -77,6 +77,7 @@ class UserDatabase:
         if 'database.credentials' not in config:
             error_msg(f'No database.credentials section in {config_path}')
         credentials = config['database.credentials']
+        general_config = config['database.general']
 
         if 'dbhost' not in credentials:
             error_msg(f'No dbhost variable found in {config_path}')
@@ -88,6 +89,11 @@ class UserDatabase:
             error_msg(f'No dbuser variable found in {config_path}')
         if 'dbpass' not in credentials:
             error_msg(f'No dbpass variable found in {config_path}')
+        if 'upload_facility' not in general_config:
+            self.upload_facility = '/tmp'
+        else:
+            self.upload_facility = general_config['upload_facility']
+
         self.dbhost = credentials['dbhost']
         self.dbport = credentials['dbport']
         self.dbname = credentials['dbname']
@@ -103,23 +109,23 @@ class UserDatabase:
         self.user_table = sqlalchemy.Table(
             'user_table',
             metadata_root_object,
-            sqlalchemy.Column('username', sqlalchemy.String(30), primary_key=True),
+            sqlalchemy.Column('username', sqlalchemy.String, primary_key=True),
             sqlalchemy.Column('password_hash', sqlalchemy.String),
             sqlalchemy.Column('salt', sqlalchemy.String),
         )
         self.session_table = sqlalchemy.Table(
             'session_table',
             metadata_root_object,
-            sqlalchemy.Column('username', sqlalchemy.String(30)),
+            sqlalchemy.Column('username', sqlalchemy.String),
             sqlalchemy.Column('id', sqlalchemy.String, primary_key=True),
             sqlalchemy.Column('creation_time', sqlalchemy.String),
-            sqlalchemy.Column('task_ids', sqlalchemy.String),
         )
         self.task_table = sqlalchemy.Table(
             'task_table',
             metadata_root_object,
-            sqlalchemy.Column('id', sqlalchemy.String(30), primary_key=True),
+            sqlalchemy.Column('id', sqlalchemy.String, primary_key=True),
             sqlalchemy.Column('parent_session_id', sqlalchemy.String),
+            sqlalchemy.Column('username', sqlalchemy.String),
             sqlalchemy.Column('blend_file_path', sqlalchemy.String),
             sqlalchemy.Column('state', sqlalchemy.String),
             sqlalchemy.Column('progress', sqlalchemy.String),
@@ -132,29 +138,17 @@ class UserDatabase:
         self.session.commit()
 
     def add_user(self, username, password_hash, salt):
-        try:
-            self.insert_data(User(username=username, password_hash=password_hash, salt=salt))
-        except:
-            error_msg('useradd failed (likely due to a duplicate username)')
-            self.session.rollback()
+        self.insert_data(User(username=username,
+                              password_hash=password_hash,
+                              salt=salt))
 
     def get_user_by_username(self, username):
         return self.session.execute(select(self.user_table).where(self.user_table.c.username == username)).fetchall()
 
-    def is_user(self, username):
-        return bool(self.session.execute(select(self.user_table).where(self.user_table.c.username == username)).fetchall())
-
-#    def all_user_data(self):
-#        return self.session.execute(select(self.user_table)).fetchall()
-
-#    def list_users(self):
-#        data = self.session.execute(select(self.user_table)).fetchall()
-#        if not data:
-#            return []
-#        return [user[0] for user in data]
-
-    def add_session(self, username, id, creation_time, task_ids):
-        self.insert_data(Session(username=username, id=str(id), creation_time=str(creation_time), task_ids=json.dumps(task_ids)))
+    def add_session(self, username, id, creation_time):
+        self.insert_data(Session(username=username,
+                                 id=str(id),
+                                 creation_time=str(creation_time)))
 
     def get_session_by_username(self, username):
         return self.session.execute(select(self.session_table).where(self.session_table.c.username == username)).fetchall()
@@ -166,7 +160,8 @@ class UserDatabase:
         return bool(self.get_session_by_id(id))
 
     def delete_session_by_id(self, id):
-        return self.session.execute(delete(self.session_table).where(self.session_table.c.id == id))
+        self.session.execute(delete(self.session_table).where(self.session_table.c.id == id))
+        self.session.commit()
 
     def list_sessions(self):
         data = self.session.execute(select(self.session_table)).fetchall()
@@ -174,22 +169,20 @@ class UserDatabase:
             return []
         return [session[0] for session in data]
 
-#    def all_session_data(self):
-#        return self.session.execute(select(self.user_table)).fetchall()
-
     def get_session_tasks_by_id(self, id):
-        return json.loads(self.session.execute(select(self.session_table).where(self.session_table.c.id == str(id))).fetchall()[0][3])
-
-    def update_session_tasks_by_id(self, id, new_tasks_list):
-        task_ids = json.dumps(new_tasks_list)
-        self.session.execute(update(self.session_table).where(self.session_table.c.id == str(id)).values(task_ids=task_ids))
+        data = self.session.execute(select(self.session_table).where(self.session_table.c.id == str(id))).fetchall()
+        if data:
+            data = json.loads(data[0].task_ids)
+        else:
+            data = []
+        return data
 
     def add_task(self, id, parent_session_id, blend_file_path, state, progress):
-        try:
-            self.insert_data(Task(id=id, parent_session_id=parent_session_id, blend_file_path=blend_file_path, state=state, progress=progress))
-        except:
-            error_msg('taskadd failed (likely due to a duplicate id)')
-            self.session.rollback()
+        self.insert_data(Task(id=id,
+                              parent_session_id=parent_session_id,
+                              blend_file_path=blend_file_path,
+                              state=state,
+                              progress=progress))
 
     def get_task_by_id(self, id):
         return self.session.execute(select(self.task_table).where(self.task_table.c.id == id)).fetchall()
@@ -198,7 +191,12 @@ class UserDatabase:
         return bool(self.get_task_by_id(id))
 
     def delete_task_by_id(self, id):
-        return self.session.execute(delete(self.task_table).where(self.task_table.c.id == id))
+        self.session.execute(delete(self.task_table).where(self.task_table.c.id == id))
+        self.session.commit()
+
+    def delete_task_by_session_id(self, id):
+        self.session.execute(delete(self.task_table).where(self.task_table.c.parent_session_id == id))
+        self.session.commit()
 
     def get_task_by_session_id(self, parent_session_id):
         return self.session.execute(select(self.task_table).where(self.task_table.c.parent_session_id == parent_session_id)).fetchall()
