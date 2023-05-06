@@ -1,2 +1,0 @@
-FROM postgres
-ENV POSTGRES_PASSWORD='lolava'

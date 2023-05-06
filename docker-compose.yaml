@@ -1,0 +1,17 @@
+services:
+  glacier-backend:
+    build: ./glacier-backend
+    ports:
+      - "8888:8888"
+    networks:
+      - backbone
+  postgres:
+    image: postgres
+    environment:
+      - POSTGRES_PASSWORD=lolava
+    networks:
+      - backbone
+
+networks:
+  backbone:
+    name: backbone
