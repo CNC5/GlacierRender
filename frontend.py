@@ -25,14 +25,16 @@ class Backend:
             else:
                 raise Exception(response.text)
 
-    def render(self, blend_file_path):
+    def render(self, blend_file_path, start_frame, end_frame):
         if self.is_alive:
             response = requests.post(f'{self.schema}{self.address}/task/request?'
-                                               f'session_id={self.session_id}',
-                                               files={'file': open(blend_file_path)})
+                                     f'session_id={self.session_id}&'
+                                     f'start_frame={start_frame}&'
+                                     f'end_frame={end_frame}',
+                                     files={'file': open(blend_file_path, 'rb')})
             if response.status_code == 200:
                 return json.loads(response.text)
-            raise Exception('non 200 response')
+            raise Exception(response.text)
 
     def stat(self, id):
         if self.is_alive:

@@ -1,13 +1,11 @@
-import os
-import socket
-import time
-from typing import Optional
 import json
 import logging
+import os
+from typing import Optional
+
 import sqlalchemy
 from sqlalchemy import select, delete, update
 from sqlalchemy.orm import Mapped, mapped_column
-
 
 logger = logging.Logger('glacier-database')
 
@@ -22,21 +20,6 @@ def warn_msg(message):
 
 def error_msg(message):
     logger.error(message)
-
-
-def is_database_healthy():
-    db_host = os.environ['DB_HOST']
-    db_port = int(os.environ['DB_PORT'])
-
-    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    while True:
-        try:
-            s.connect((db_host, db_port))
-            s.close()
-            break
-        except socket.error as ex:
-            error_msg('database not responding')
-            time.sleep(0.5)
 
 
 class Base(sqlalchemy.orm.DeclarativeBase):
@@ -89,7 +72,6 @@ class Task(Base):
 
 class UserDatabase:
     def __init__(self):
-        is_database_healthy()
         environment = os.environ
         if 'DB_HOST' not in environment:
             error_msg(f'No dbhost variable found')
@@ -229,4 +211,4 @@ class DatabaseManager:
 
 
 if __name__ == '__main__':
-    db = UserDatabase(config_path)
+    db = UserDatabase()

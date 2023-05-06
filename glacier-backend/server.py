@@ -77,12 +77,14 @@ class AuthHandler(tornado.web.RequestHandler):
 class SpawnHandler(tornado.web.RequestHandler):
     def post(self):  # post
         session_id = self.get_argument('session_id')
-        if not auth.is_session(session_id):
+        start_frame = self.get_argument('start_frame')
+        end_frame = self.get_argument('end_frame')
+        if not auth.is_session(session_id) or not start_frame.isdigit() or not end_frame.isdigit():
             self.set_status(404)
-            self.finish('404')
+            self.finish('Unauthorized')
             return
         blend_file = self.request.files['file'][0]
-        new_task_id = auth.add_task(session_id, blend_file)
+        new_task_id = auth.add_task(session_id, blend_file, start_frame, end_frame)
         self.write(json.dumps(new_task_id))
 
 

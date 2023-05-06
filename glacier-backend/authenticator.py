@@ -63,7 +63,6 @@ class Authman:
     def add_task(self, parent_session_id, blend_file, start_frame, end_frame):
         task_id = token_hex(18)
         state = 'CREATED'
-        progress = '0'
         file_path = f'{self.db.upload_facility}/{task_id}.blend'
         with open(file_path, 'wb') as blend_file_on_disk:
             blend_file_on_disk.write(blend_file['body'])
