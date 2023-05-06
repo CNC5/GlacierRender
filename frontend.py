@@ -29,7 +29,7 @@ class Backend:
         if self.is_alive:
             response = requests.post(f'{self.schema}{self.address}/task/request?'
                                                f'session_id={self.session_id}',
-                                               files={'file': open(blend_file_path)})
+                                               files={'file': open(blend_file_path, 'rb')})
             if response.status_code == 200:
                 return json.loads(response.text)
             raise Exception('non 200 response')
