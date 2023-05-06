@@ -6,7 +6,25 @@ from typing import Optional
 import sqlalchemy
 from sqlalchemy import select, delete, update
 from sqlalchemy.orm import Mapped, mapped_column
+import socket
+import time
+import os
 
+
+def wait_for_database_up():
+    db_host = os.environ['DB_HOST']
+    db_port = int(os.environ['DB_PORT'])
+    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    while True:
+        try:
+            s.connect((db_host, db_port))
+            s.close()
+            break
+        except socket.error as ex:
+            time.sleep(0.5)
+
+
+wait_for_database_up()
 logger = logging.Logger('glacier-database')
 
 

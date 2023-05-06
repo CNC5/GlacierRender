@@ -12,3 +12,4 @@ COPY server.py .
 COPY authenticator.py .
 COPY database.py .
 COPY render.py .
+ENTRYPOINT python server.py

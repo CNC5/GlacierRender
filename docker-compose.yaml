@@ -1,8 +1,6 @@
 services:
   glacier-backend:
     build: ./glacier-backend
-    command:
-      - "bash -c python server.py"
     ports:
       - "8888:8888"
     environment:
