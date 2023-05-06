@@ -2,7 +2,7 @@ services:
   glacier-backend:
     build: ./glacier-backend
     command:
-      - "python server.py"
+      - "/usr/bin/python server.py"
     ports:
       - "8888:8888"
     environment:
