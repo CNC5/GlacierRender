@@ -71,7 +71,7 @@ class Authman:
         return task_id
 
     def task_updater(self, task_id):
-        self.db.update_task_state(task_id, task_id[task_id].state)
+        self.db.update_task_state(task_id, tasks_by_id[task_id].state)
 
     def is_task(self, task_id):
         return bool(self.db.get_task_by_id(task_id))
