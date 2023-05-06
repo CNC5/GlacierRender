@@ -3,6 +3,12 @@ services:
     build: ./glacier-backend
     ports:
       - "8888:8888"
+    environment:
+      - DB_HOST=glacierrender-postgres-1
+      - DB_PORT=5432
+      - DB_NAME=postgres
+      - DB_USER=postgres
+      - DB_PASS=lolava
     networks:
       - backbone
   postgres:

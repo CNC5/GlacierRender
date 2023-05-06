@@ -1,10 +1,14 @@
-from sqlalchemy import text, select, delete, update
-from sqlalchemy.orm import Mapped, mapped_column, relationship
+import os
+import socket
+import time
 from typing import Optional
-import sqlalchemy, configparser, logging, json
-from secrets import token_hex
+import json
+import logging
+import sqlalchemy
+from sqlalchemy import select, delete, update
+from sqlalchemy.orm import Mapped, mapped_column
 
-config_path = 'config.ini'
+
 logger = logging.Logger('glacier-database')
 
 
@@ -18,6 +22,24 @@ def warn_msg(message):
 
 def error_msg(message):
     logger.error(message)
+
+
+def is_database_healthy():
+    db_host = os.environ['DB_HOST']
+    db_port = int(os.environ['DB_PORT'])
+
+    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    while True:
+        try:
+            s.connect((db_host, db_port))
+            s.close()
+            break
+        except socket.error as ex:
+            error_msg('database not responding')
+            time.sleep(0.5)
+
+
+is_database_healthy()
 
 
 class Base(sqlalchemy.orm.DeclarativeBase):
@@ -70,38 +92,30 @@ class Task(Base):
 
 class UserDatabase:
     def __init__(self, config_path):
-        config = configparser.ConfigParser()
-        config.read(config_path)
-
-        if 'database.credentials' not in config:
-            error_msg(f'No database.credentials section in {config_path}')
-        credentials = config['database.credentials']
-        general_config = config['database.general']
-
-        if 'dbhost' not in credentials:
-            error_msg(f'No dbhost variable found in {config_path}')
-        if 'dbport' not in credentials:
-            error_msg(f'No dbport variable found in {config_path}')
-        if 'dbname' not in credentials:
-            error_msg(f'No dbname variable found in {config_path}')
-        if 'dbuser' not in credentials:
-            error_msg(f'No dbuser variable found in {config_path}')
-        if 'dbpass' not in credentials:
-            error_msg(f'No dbpass variable found in {config_path}')
-        if 'upload_facility' not in general_config:
+        environment = os.environ
+        if 'DB_HOST' not in environment:
+            error_msg(f'No dbhost variable found')
+        if 'DB_PORT' not in environment:
+            error_msg(f'No dbport variable found')
+        if 'DB_NAME' not in environment:
+            error_msg(f'No dbname variable found')
+        if 'DB_USER' not in environment:
+            error_msg(f'No dbuser variable found')
+        if 'DB_PASS' not in environment:
+            error_msg(f'No dbpass variable found')
+        if 'UPLOAD_FACILITY' not in environment:
             self.upload_facility = '/tmp'
         else:
-            self.upload_facility = general_config['upload_facility']
+            self.upload_facility = environment['UPLOAD_FACILITY']
 
-        self.dbhost = credentials['dbhost']
-        self.dbport = credentials['dbport']
-        self.dbname = credentials['dbname']
-        self.dbuser = credentials['dbuser']
-        self.dbpass = credentials['dbpass']
-        self.engine = sqlalchemy.create_engine(f'postgresql+psycopg2://{self.dbuser}:{self.dbpass}@{self.dbhost}:{self.dbport}/{self.dbname}', echo=True)
-        del self.dbpass
-        del credentials
-        del config
+        self.dbhost = environment['DB_HOST']
+        self.dbport = environment['DB_PORT']
+        self.dbname = environment['DB_NAME']
+        self.dbuser = environment['DB_USER']
+        self.dbpass = environment['DB_PASS']
+        self.engine = sqlalchemy.create_engine(f'postgresql+psycopg2://'
+                                               f'{self.dbuser}:{self.dbpass}@{self.dbhost}:{self.dbport}/'
+                                               f'{self.dbname}', echo=True)
         self.session = sqlalchemy.orm.Session(self.engine)
 
         metadata_root_object = sqlalchemy.MetaData()
