@@ -1,6 +1,7 @@
 import hashlib
 import logging
 import time
+import render
 from secrets import token_hex
 
 from database import UserDatabase
@@ -15,9 +16,13 @@ def hash_string(plaintext, salt):
     return hashed_text.hexdigest()
 
 
+tasks_by_id = {}
+
+
 class Authman:
     def __init__(self):
         self.db = UserDatabase('config.ini')
+        self.render_bus = render.render_bus
 
     def is_user(self, username):
         return bool(self.db.get_user_by_username(username))
@@ -55,15 +60,19 @@ class Authman:
         self.db.delete_task_by_session_id(session_id)
         self.db.delete_session_by_id(session_id)
 
-    def add_task(self, parent_session_id, blend_file):
+    def add_task(self, parent_session_id, blend_file, start_frame, end_frame):
         task_id = token_hex(18)
         state = 'CREATED'
         progress = '0'
         file_path = f'{self.db.upload_facility}/{task_id}.blend'
         with open(file_path, 'wb') as blend_file_on_disk:
             blend_file_on_disk.write(blend_file['body'])
-        self.db.add_task(task_id, parent_session_id, file_path, state, progress)
+        self.db.add_task(task_id, parent_session_id, file_path, state)
+        tasks_by_id.update({task_id: render.Renderer(task_id, file_path, start_frame, end_frame, self.task_updater)})
         return task_id
+
+    def task_updater(self, task_id):
+        self.db.update_task_state(task_id, task_id[task_id].state)
 
     def is_task(self, task_id):
         return bool(self.db.get_task_by_id(task_id))

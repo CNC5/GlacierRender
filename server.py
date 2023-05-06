@@ -2,7 +2,7 @@ import asyncio
 import json
 import logging
 import tornado
-
+import render
 from authenticator import Authman
 
 auth = Authman()
@@ -137,5 +137,11 @@ async def main_server():
     app.listen(8888)
     await asyncio.Event().wait()
 
+
+async def main():
+    loop = asyncio.get_event_loop()
+    await asyncio.gather(main_server(), loop.run_in_executor(None, auth.render_bus.scheduler))
+
+
 if __name__ == "__main__":
-    asyncio.run(main_server())
+    asyncio.run(main())

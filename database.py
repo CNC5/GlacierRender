@@ -50,6 +50,7 @@ class Session(Base):
                f"creation_time={self.creation_time!r}, " \
 
 
+
 class Task(Base):
     __tablename__ = "task_table"
 
@@ -58,15 +59,13 @@ class Task(Base):
     username: Mapped[Optional[str]]
     blend_file_path: Mapped[Optional[str]]
     state: Mapped[Optional[str]]
-    progress: Mapped[Optional[str]]
 
     def __repr__(self) -> str:
         return f"Task(id={self.id!r}, " \
                f"parent_session_id={self.parent_session_id!r}, " \
                f"username={self.username!r}" \
-               f"blend_file_path={self.blend_file_path!r}, " \
-               f"state={self.state!r}, " \
-               f"progress={self.progress!r})"
+               f"blend_file_path={self.blend_file_path!r}" \
+               f"state={self.state!r})"
 
 
 class UserDatabase:
@@ -127,8 +126,7 @@ class UserDatabase:
             sqlalchemy.Column('parent_session_id', sqlalchemy.String),
             sqlalchemy.Column('username', sqlalchemy.String),
             sqlalchemy.Column('blend_file_path', sqlalchemy.String),
-            sqlalchemy.Column('state', sqlalchemy.String),
-            sqlalchemy.Column('progress', sqlalchemy.String),
+            sqlalchemy.Column('state', sqlalchemy.String)
         )
         metadata_root_object.create_all(self.engine)
 
@@ -177,12 +175,14 @@ class UserDatabase:
             data = []
         return data
 
-    def add_task(self, id, parent_session_id, blend_file_path, state, progress):
+    def add_task(self, id, parent_session_id, blend_file_path, state):
         self.insert_data(Task(id=id,
                               parent_session_id=parent_session_id,
                               blend_file_path=blend_file_path,
-                              state=state,
-                              progress=progress))
+                              state=state))
+
+    def update_task_state(self, task_id, new_state):
+        self.session.execute(update(self.task_table).where(self.task_table.c.id == task_id).values(state=new_state))
 
     def get_task_by_id(self, id):
         return self.session.execute(select(self.task_table).where(self.task_table.c.id == id)).fetchall()
