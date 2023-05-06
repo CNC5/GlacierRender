@@ -1,6 +1,6 @@
 FROM python
 RUN apt update
-RUN apt install blender
+RUN apt install -y blender
 RUN useradd -ms /bin/bash render_agent
 USER render_agent
 WORKDIR /home/render_agent
