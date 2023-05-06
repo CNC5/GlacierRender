@@ -1,6 +1,7 @@
 import os
 import subprocess
-import pynvml
+import threading
+import time
 
 
 class Renderer:
@@ -12,6 +13,7 @@ class Renderer:
                              '-o', output_dir, '-noaudio',
                              '-s', start_frame, '-e', end_frame,
                              '-a', '--', '--cycles-device', self.cycles_device]
+        self.thread = None
         self.blender_bin = os.environ['BLENDER_BIN']
         self.is_nvidia_gpu_capable = os.path.isfile('/usr/bin/nvidia-smi')
         self.is_radeon_gpu_capable = 0  # not implemented
@@ -20,7 +22,7 @@ class Renderer:
         self.status = 'SCHEDULED'
 
         if self.is_nvidia_gpu_capable:
-            self.render = self.render_gpu_nvidia
+            self.render = self.render_gpu_nvidia_in_thread
         if self.is_radeon_gpu_capable:
             pass  # not implemented
         if not self.is_radeon_gpu_capable and not self.is_nvidia_gpu_capable:
@@ -29,7 +31,7 @@ class Renderer:
     def kill(self):
         self.killed = 1
 
-    def render_cpu(self, blend_file_path):
+    def render_cpu(self):
         pass
 
     def render_gpu_nvidia(self):
@@ -49,3 +51,17 @@ class Renderer:
             if return_code is not None:
                 self.status = 'COMPLETED'
                 break
+
+    def render_gpu_nvidia_in_thread(self):
+        self.thread = threading.Thread(target=self.render_gpu_nvidia)
+        self.thread.start()
+
+    def render_cpu_in_thread(self):
+        self.thread = threading.Thread(target=self.render_cpu)
+        self.thread.start()
+
+    def interactive_render(self):
+        self.render()
+        while self.status not in ['COMPLETED', 'KILLED']:
+            print(self.last_line)
+            time.sleep(0.5)
