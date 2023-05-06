@@ -64,10 +64,12 @@ class Authman:
         task_id = token_hex(18)
         state = 'CREATED'
         file_path = f'{self.db.upload_facility}/{task_id}.blend'
+        username = self.db.get_session_by_id(parent_session_id)[0].username
         with open(file_path, 'wb') as blend_file_on_disk:
             blend_file_on_disk.write(blend_file['body'])
-        self.db.add_task(task_id, parent_session_id, file_path, state)
-        tasks_by_id.update({task_id: render.Renderer(task_id, file_path, start_frame, end_frame, self.task_updater)})
+        self.db.add_task(task_id, parent_session_id, username, file_path, state)
+        new_task = render.Renderer(task_id, file_path, start_frame, end_frame, self.task_updater)
+        tasks_by_id.update({task_id: new_task})
         return task_id
 
     def task_updater(self, task_id):

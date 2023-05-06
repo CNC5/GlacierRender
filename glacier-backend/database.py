@@ -187,9 +187,10 @@ class UserDatabase:
             data = []
         return data
 
-    def add_task(self, id, parent_session_id, blend_file_path, state):
+    def add_task(self, id, parent_session_id, username, blend_file_path, state):
         self.insert_data(Task(id=id,
                               parent_session_id=parent_session_id,
+                              username=username,
                               blend_file_path=blend_file_path,
                               state=state))
 
