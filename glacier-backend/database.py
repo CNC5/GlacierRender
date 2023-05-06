@@ -39,9 +39,6 @@ def is_database_healthy():
             time.sleep(0.5)
 
 
-is_database_healthy()
-
-
 class Base(sqlalchemy.orm.DeclarativeBase):
     pass
 
@@ -92,6 +89,7 @@ class Task(Base):
 
 class UserDatabase:
     def __init__(self, config_path):
+        is_database_healthy()
         environment = os.environ
         if 'DB_HOST' not in environment:
             error_msg(f'No dbhost variable found')
