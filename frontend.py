@@ -22,6 +22,8 @@ class Backend:
             if response.status_code == 200:
                 self.is_alive = 1
                 self.session_id = json.loads(response.text)
+            else:
+                raise Exception(response.text)
 
     def render(self, blend_file_path):
         if self.is_alive:
