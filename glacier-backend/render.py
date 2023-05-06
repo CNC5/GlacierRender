@@ -7,17 +7,12 @@ import logging
 
 logger = logging.Logger('glacier-renderer')
 
-config_path = 'config.ini'
-config = configparser.ConfigParser()
-config.read(config_path)
-general_config = config['database.general']
-if 'upload_facility' not in general_config:
+environment = os.environ
+if 'UPLOAD_FACILITY' not in environment:
     upload_facility = '/tmp'
 else:
-    upload_facility = general_config['upload_facility']
-del config
-del general_config
-
+    upload_facility = environment['UPLOAD_FACILITY']
+del environment
 
 def info_msg(message):
     logger.info(message)

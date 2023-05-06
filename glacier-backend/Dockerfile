@@ -12,5 +12,4 @@ COPY server.py .
 COPY authenticator.py .
 COPY database.py .
 COPY render.py .
-COPY config.ini .
 ENTRYPOINT python server.py

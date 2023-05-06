@@ -88,7 +88,7 @@ class Task(Base):
 
 
 class UserDatabase:
-    def __init__(self, config_path):
+    def __init__(self):
         is_database_healthy()
         environment = os.environ
         if 'DB_HOST' not in environment:

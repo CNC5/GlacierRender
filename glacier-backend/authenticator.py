@@ -21,7 +21,7 @@ tasks_by_id = {}
 
 class Authman:
     def __init__(self):
-        self.db = UserDatabase('config.ini')
+        self.db = UserDatabase()
         self.render_bus = render.render_bus
 
     def is_user(self, username):
