@@ -10,6 +10,10 @@ from database import UserDatabase
 logger = logging.getLogger(__name__)
 
 
+def debug_msg(message):
+    logger.debug(message)
+
+
 def info_msg(message):
     logger.info(message)
 
