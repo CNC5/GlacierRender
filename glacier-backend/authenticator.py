@@ -1,5 +1,6 @@
 import hashlib
 import logging
+import os
 import time
 import render
 from secrets import token_hex
@@ -88,10 +89,5 @@ class Authman:
         del self.db
 
 
-def test():
-    auth.add_user('qwerty', '12345')
-
-
 if __name__ == '__main__':
     auth = Authman()
-    test()
