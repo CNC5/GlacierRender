@@ -10,7 +10,7 @@ services:
       - DB_USER=postgres
       - DB_PASS=lolava
     networks:
-      - backbone
+      - glacier-backbone
     stdin_open: true
     tty: true
   postgres:
@@ -18,8 +18,8 @@ services:
     environment:
       - POSTGRES_PASSWORD=lolava
     networks:
-      - backbone
+      - glacier-backbone
 
 networks:
-  backbone:
-    name: backbone
+  glacier-backbone:
+    name: glacier-backbone

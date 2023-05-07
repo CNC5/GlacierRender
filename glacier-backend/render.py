@@ -5,14 +5,18 @@ import threading
 import time
 import logging
 
-logger = logging.Logger(__name__)
-logger.setLevel(logging.INFO)
+logger = logging.getLogger(__name__)
 environment = os.environ
+
 if 'UPLOAD_FACILITY' not in environment:
     upload_facility = '/tmp'
 else:
     upload_facility = environment['UPLOAD_FACILITY']
 del environment
+
+
+def debug_msg(message):
+    logger.debug(message)
 
 
 def info_msg(message):
@@ -32,16 +36,24 @@ class RenderBus:
         self.tasks = []
 
     def scheduler(self):
+        is_last_cycle_full = False
+        info_msg('task scheduler start')
         while True:
             if self.tasks:
-                info_msg('full scheduler cycle')
+                if not is_last_cycle_full:
+                    info_msg('full scheduler cycle')
                 for task in self.tasks:
                     if task.state == 'SCHEDULED':
+                        is_last_cycle_full = True
                         task.render()
-                    elif task.state == 'COMPLETE':
+                    elif task.state == 'COMPLETED':
+                        is_last_cycle_full = True
                         task.pack_output()
+                time.sleep(0.5)
             else:
-                info_msg('empty scheduler cycle')
+                if is_last_cycle_full:
+                    info_msg('empty scheduler cycle')
+                is_last_cycle_full = False
                 time.sleep(0.5)
 
 
@@ -118,7 +130,9 @@ class Renderer:
     def pack_output(self):
         self.state = 'COMPRESSING'
         self.update_callback(self.id, self.state)
-        result = subprocess.run(['tar', '-zcpvf', f'{upload_facility}/{self.id}.tar.gz', self.output_dir])
+        result = subprocess.run(['tar', '-zcpvf', f'{upload_facility}/{self.id}.tar.gz', self.output_dir],
+                                stdout=subprocess.DEVNULL,
+                                stderr=subprocess.DEVNULL)
         if result.returncode == 0:
             self.state = 'PACKED'
         else:

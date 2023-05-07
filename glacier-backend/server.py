@@ -1,14 +1,20 @@
 import asyncio
 import json
 import logging
+import sys
+
 import tornado
-import render
 from authenticator import Authman
 
 auth = Authman()
 
-logger = logging.Logger(__name__)
+logging.basicConfig(stream=sys.stdout,
+                    level=logging.INFO,
+                    format='%(asctime)s %(levelname)-8s %(name)-16s: %(message)s',
+                    datefmt='%Y-%m-%d %H:%M:%S')
+logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
+logging.getLogger('sqlalchemy').setLevel(logging.WARNING)
 
 
 def info_msg(message):
@@ -111,6 +117,14 @@ class ResultHandler(tornado.web.RequestHandler):
         self.write(f'200')
 
 
+class KillHandler(tornado.web.RequestHandler):
+    def get(self):
+        session_id = self.get_argument('session_id')
+        task_id = self.get_argument('task_id')
+        if auth.is_session(session_id) and auth.is_task(task_id):
+            auth.tasks_by_id[task_id].kill()
+
+
 class ListHandler(tornado.web.RequestHandler):
     def get(self):
         session_id = self.get_argument('session_id')
@@ -131,6 +145,7 @@ def make_app():
         (r'/task/request',      SpawnHandler),          # session_id
         (r'/task/stat',         StatHandler),           # session_id & task_id
         (r'/task/result',       ResultHandler),         # session_id & task_id
+        (r'/task/kill',         KillHandler),           # session_id & task_id
         (r'/task/list',         ListHandler),           # session_id
         (r'/session/list',      SessionListHandler),    # username   & password
         (r'/session/remove',    SessionRemoveHandler)   # username   & password   & session_id

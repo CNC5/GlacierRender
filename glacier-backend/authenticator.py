@@ -7,16 +7,25 @@ from secrets import token_hex
 
 from database import UserDatabase
 
-logger = logging.Logger(__name__)
-logger.setLevel(logging.WARNING)
+logger = logging.getLogger(__name__)
+
+
+def info_msg(message):
+    logger.info(message)
+
+
+def warn_msg(message):
+    logger.warning(message)
+
+
+def error_msg(message):
+    logger.error(message)
 
 
 def hash_string(plaintext, salt):
     hashed_text = hashlib.sha3_256()
     hashed_text.update(f'{plaintext}{salt}'.encode())
     return hashed_text.hexdigest()
-
-
 
 
 class Authman:
@@ -74,6 +83,7 @@ class Authman:
         return task_id
 
     def task_updater(self, task_id, new_state):
+        info_msg(f'task {task_id} state changed to {new_state}')
         self.db.update_task_state(task_id, new_state)
 
     def is_task(self, task_id):

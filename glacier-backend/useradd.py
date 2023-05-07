@@ -1,4 +1,5 @@
 from authenticator import Authman
+import os
 
 if __name__ == '__main__':
     auth = Authman()

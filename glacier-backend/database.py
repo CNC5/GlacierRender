@@ -25,7 +25,7 @@ def wait_for_database_up():
 
 
 wait_for_database_up()
-logger = logging.Logger('glacier-database')
+logger = logging.getLogger(__name__)
 
 
 def info_msg(message):
@@ -113,7 +113,7 @@ class UserDatabase:
         self.dbpass = environment['DB_PASS']
         self.engine = sqlalchemy.create_engine(f'postgresql+psycopg2://'
                                                f'{self.dbuser}:{self.dbpass}@{self.dbhost}:{self.dbport}/'
-                                               f'{self.dbname}', echo=True)
+                                               f'{self.dbname}')
         self.session = sqlalchemy.orm.Session(self.engine)
 
         metadata_root_object = sqlalchemy.MetaData()

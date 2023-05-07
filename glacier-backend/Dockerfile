@@ -8,6 +8,6 @@ RUN pip install tornado sqlalchemy psycopg2 nvidia-ml-py
 RUN curl -o /home/render_agent/blender.tar.xz https://mirrors.dotsrc.org/blender/release/Blender3.5/blender-3.5.1-linux-x64.tar.xz
 RUN tar -xpvf blender.tar.xz && rm blender.tar.xz
 ENV BLENDER_BIN=/home/render_agent/blender-3.5.1-linux-x64/blender
-RUN git clone https://github.com/CNC5/GlacierRender
+ADD . /home/render_agent/GlacierRender/glacier-backend/
 WORKDIR /home/render_agent/GlacierRender/glacier-backend
 ENTRYPOINT python -i server.py
