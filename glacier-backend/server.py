@@ -7,8 +7,8 @@ from authenticator import Authman
 
 auth = Authman()
 
-logger = logging.Logger('glacier-server')
-logger.setLevel(logging.WARNING)
+logger = logging.Logger(__name__)
+logger.setLevel(logging.INFO)
 
 
 def info_msg(message):
@@ -64,10 +64,10 @@ class AuthHandler(tornado.web.RequestHandler):
         password = self.get_argument('password')
         if auth.is_password_correct(username, password):
             if auth.is_session_by_username(username):
-                self.write(json.dumps(auth.db.get_session_by_username(username)[0].id))
+                self.write(json.dumps({'session_id': auth.db.get_session_by_username(username)[0].id}))
             else:
                 new_session_id = auth.add_session(username)
-                self.write(json.dumps(new_session_id))
+                self.write(json.dumps({'session_id': new_session_id}))
         else:
             self.set_status(404)
             self.finish('404')
@@ -85,7 +85,7 @@ class SpawnHandler(tornado.web.RequestHandler):
             return
         blend_file = self.request.files['file'][0]
         new_task_id = auth.add_task(session_id, blend_file, start_frame, end_frame)
-        self.write(json.dumps(new_task_id))
+        self.write(json.dumps({'task_id': new_task_id}))
 
 
 class StatHandler(tornado.web.RequestHandler):
@@ -94,7 +94,10 @@ class StatHandler(tornado.web.RequestHandler):
         task_id = self.get_argument('task_id')
         if auth.is_session(session_id) and auth.is_task(task_id):
             task = auth.db.get_task_by_id(task_id)
-            self.write(json.dumps(list(task[0])))
+            task_data = task[0]._asdict()
+            progress = str(auth.tasks_by_id[task_id].last_line)
+            task_data.update({'progress': progress})
+            self.write(json.dumps(task_data))
         else:
             self.set_status(404)
             self.finish('404')
@@ -113,7 +116,7 @@ class ListHandler(tornado.web.RequestHandler):
         session_id = self.get_argument('session_id')
         if auth.is_session(session_id):
             if auth.is_task_by_session_id(session_id):
-                self.write(json.dumps(auth.db.get_task_by_session_id(session_id)))
+                self.write(json.dumps(auth.db.get_task_by_session_id(session_id)._asdict()))
                 return
             else:
                 self.write(json.dumps([]))
@@ -142,7 +145,7 @@ async def main_server():
 
 async def main():
     loop = asyncio.get_event_loop()
-    await asyncio.gather(main_server(), loop.run_in_executor(None, auth.render_bus.scheduler))
+    await asyncio.gather(loop.run_in_executor(None, auth.render_bus.scheduler), main_server())
 
 
 if __name__ == "__main__":

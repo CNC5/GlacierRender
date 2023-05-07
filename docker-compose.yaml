@@ -11,6 +11,8 @@ services:
       - DB_PASS=lolava
     networks:
       - backbone
+    stdin_open: true
+    tty: true
   postgres:
     image: postgres
     environment:

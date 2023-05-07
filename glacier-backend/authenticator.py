@@ -6,7 +6,7 @@ from secrets import token_hex
 
 from database import UserDatabase
 
-logger = logging.Logger('glacier-auth')
+logger = logging.Logger(__name__)
 logger.setLevel(logging.WARNING)
 
 
@@ -16,11 +16,11 @@ def hash_string(plaintext, salt):
     return hashed_text.hexdigest()
 
 
-tasks_by_id = {}
 
 
 class Authman:
     def __init__(self):
+        self.tasks_by_id = {}
         self.db = UserDatabase()
         self.render_bus = render.render_bus
 
@@ -69,11 +69,11 @@ class Authman:
             blend_file_on_disk.write(blend_file['body'])
         self.db.add_task(task_id, parent_session_id, username, file_path, state)
         new_task = render.Renderer(task_id, file_path, start_frame, end_frame, self.task_updater)
-        tasks_by_id.update({task_id: new_task})
+        self.tasks_by_id.update({task_id: new_task})
         return task_id
 
-    def task_updater(self, task_id):
-        self.db.update_task_state(task_id, tasks_by_id[task_id].state)
+    def task_updater(self, task_id, new_state):
+        self.db.update_task_state(task_id, new_state)
 
     def is_task(self, task_id):
         return bool(self.db.get_task_by_id(task_id))
@@ -88,5 +88,10 @@ class Authman:
         del self.db
 
 
+def test():
+    auth.add_user('qwerty', '12345')
+
+
 if __name__ == '__main__':
     auth = Authman()
+    test()

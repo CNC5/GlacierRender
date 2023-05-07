@@ -5,14 +5,15 @@ import threading
 import time
 import logging
 
-logger = logging.Logger('glacier-renderer')
-
+logger = logging.Logger(__name__)
+logger.setLevel(logging.INFO)
 environment = os.environ
 if 'UPLOAD_FACILITY' not in environment:
     upload_facility = '/tmp'
 else:
     upload_facility = environment['UPLOAD_FACILITY']
 del environment
+
 
 def info_msg(message):
     logger.info(message)
@@ -51,7 +52,7 @@ class Renderer:
     def __init__(self, task_id, blend_file_path, start_frame, end_frame, update_callback):
         self.id = task_id
         self.update_callback = update_callback
-        self.output_dir = f'{upload_facility}/{task_id}'
+        self.output_dir = f'{upload_facility}/{task_id}/'
         self.killed = 0
         self.render_engine = 'CYCLES'
         self.cycles_device = ''
@@ -66,7 +67,7 @@ class Renderer:
         self.blend_file_path = blend_file_path
         self.last_line = ''
         self.state = 'SCHEDULED'
-        self.update_callback(self.id)
+        self.update_callback(self.id, self.state)
 
         if self.is_nvidia_gpu_capable:
             self.render = self.render_gpu_nvidia_in_thread
@@ -81,13 +82,14 @@ class Renderer:
     def kill(self):
         self.killed = 1
 
-    def render_cpu(self):
-        self.cycles_device = 'CPU'
+    def render_any(self, cycles_device):
+        self.cycles_device = cycles_device
         blender_process = subprocess.Popen(
             [self.blender_bin, '-b', self.blend_file_path] + self.blender_args,
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT)
         self.state = 'RUNNING'
+        self.update_callback(self.id, self.state)
         while True:
             if self.killed:
                 blender_process.kill()
@@ -98,52 +100,27 @@ class Renderer:
             if line:
                 self.last_line = line
             if return_code is not None:
-                self.state = 'COMPLETED'
+                if return_code == 0:
+                    self.state = 'COMPLETED'
+                else:
+                    self.state = 'FAILED(BLENDER)'
                 break
-        self.update_callback(self.id)
-
-    def render_gpu_nvidia(self):
-        self.cycles_device = 'CUDA'
-        blender_process = subprocess.Popen(
-            [self.blender_bin, '-b', self.blend_file_path] + self.blender_args,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT)
-        self.state = 'RUNNING'
-        while True:
-            if self.killed:
-                blender_process.kill()
-                self.state = 'KILLED'
-                break
-            return_code = blender_process.poll()
-            line = blender_process.stdout.readline()
-            if line:
-                self.last_line = line
-            if return_code is not None:
-                self.state = 'COMPLETED'
-                break
-        self.update_callback(self.id)
+        self.update_callback(self.id, self.state)
 
     def render_gpu_nvidia_in_thread(self):
-        self.thread = threading.Thread(target=self.render_gpu_nvidia)
+        self.thread = threading.Thread(target=self.render_any, args=['CUDA'])
         self.thread.start()
 
     def render_cpu_in_thread(self):
-        self.thread = threading.Thread(target=self.render_cpu)
+        self.thread = threading.Thread(target=self.render_any, args=['CPU'])
         self.thread.start()
 
-    def interactive_render(self):
-        self.render()
-        prev_line = ''
-        while self.state not in ['COMPLETED', 'KILLED']:
-            if self.last_line != prev_line:
-                print(self.last_line)
-            time.sleep(0.5)
-        print(self.state)
-
     def pack_output(self):
+        self.state = 'COMPRESSING'
+        self.update_callback(self.id, self.state)
         result = subprocess.run(['tar', '-zcpvf', f'{upload_facility}/{self.id}.tar.gz', self.output_dir])
         if result.returncode == 0:
             self.state = 'PACKED'
         else:
-            self.state = 'FAILED'
-        self.update_callback(self.id)
+            self.state = 'FAILED(TAR)'
+        self.update_callback(self.id, self.state)

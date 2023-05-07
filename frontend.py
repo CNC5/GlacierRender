@@ -12,18 +12,17 @@ class Backend:
         self.password = ''
 
     def connect(self, address, username, password):
-        if not self.is_alive:
-            self.address = address
-            self.username = username
-            self.password = password
-            response = requests.get(f'{self.schema}{address}/login?'
-                                    f'username={username}&'
-                                    f'password={password}')
-            if response.status_code == 200:
-                self.is_alive = 1
-                self.session_id = json.loads(response.text)
-            else:
-                raise Exception(response.text)
+        self.address = address
+        self.username = username
+        self.password = password
+        response = requests.get(f'{self.schema}{address}/login?'
+                                f'username={username}&'
+                                f'password={password}')
+        if response.status_code == 200:
+            self.session_id = json.loads(response.text)['session_id']
+            self.is_alive = 1
+        else:
+            raise Exception(response.text)
 
     def render(self, blend_file_path, start_frame, end_frame):
         if self.is_alive:
@@ -38,9 +37,13 @@ class Backend:
 
     def stat(self, id):
         if self.is_alive:
-            return json.loads(requests.get(f'{self.schema}{self.address}/task/stat?'
+            response = requests.get(f'{self.schema}{self.address}/task/stat?'
                                            f'session_id={self.session_id}&'
-                                           f'task_id={id}').text)
+                                           f'task_id={id}')
+            if response.status_code == 200:
+                return json.loads(response.text)
+            else:
+                raise Exception(response.text)
 
     def delete_session(self, id):
         if self.is_alive:
