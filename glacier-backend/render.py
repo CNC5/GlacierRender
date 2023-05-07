@@ -80,7 +80,7 @@ class Renderer:
         self.last_line = ''
         self.state = 'SCHEDULED'
         self.update_callback(self.id, self.state)
-
+        self.tar_path = ''
         if self.is_nvidia_gpu_capable:
             self.render = self.render_gpu_nvidia_in_thread
         if self.is_radeon_gpu_capable:
@@ -130,7 +130,8 @@ class Renderer:
     def pack_output(self):
         self.state = 'COMPRESSING'
         self.update_callback(self.id, self.state)
-        result = subprocess.run(['tar', '-zcpvf', f'{upload_facility}/{self.id}.tar.gz', self.output_dir],
+        self.tar_path = f'{upload_facility}/{self.id}.tar.gz'
+        result = subprocess.run(['tar', '-zcf', self.tar_path, '--directory', self.output_dir, '.'],
                                 stdout=subprocess.DEVNULL,
                                 stderr=subprocess.DEVNULL)
         if result.returncode == 0:

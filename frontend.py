@@ -1,4 +1,7 @@
-import requests, json
+import json
+import requests
+import io
+import tarfile
 
 
 class Backend:
@@ -10,23 +13,26 @@ class Backend:
         self.session_id = ''
         self.username = ''
         self.password = ''
+        self.base_url = ''
 
     def connect(self, address, username, password):
         self.address = address
         self.username = username
         self.password = password
-        response = requests.get(f'{self.schema}{address}/login?'
+        self.base_url = self.schema + self.address
+        response = requests.get(f'{self.base_url}/login?'
                                 f'username={username}&'
                                 f'password={password}')
         if response.status_code == 200:
             self.session_id = json.loads(response.text)['session_id']
             self.is_alive = 1
+            return True
         else:
             raise Exception(response.text)
 
     def render(self, blend_file_path, start_frame, end_frame):
         if self.is_alive:
-            response = requests.post(f'{self.schema}{self.address}/task/request?'
+            response = requests.post(f'{self.base_url}/task/request?'
                                      f'session_id={self.session_id}&'
                                      f'start_frame={start_frame}&'
                                      f'end_frame={end_frame}',
@@ -35,22 +41,46 @@ class Backend:
                 return json.loads(response.text)
             raise Exception(response.text)
 
-    def stat(self, id):
+    def stat(self, task_id):
         if self.is_alive:
-            response = requests.get(f'{self.schema}{self.address}/task/stat?'
-                                           f'session_id={self.session_id}&'
-                                           f'task_id={id}')
+            response = requests.get(f'{self.base_url}/task/stat?'
+                                    f'session_id={self.session_id}&'
+                                    f'task_id={task_id}')
             if response.status_code == 200:
                 return json.loads(response.text)
             else:
                 raise Exception(response.text)
 
-    def delete_session(self, id):
+    def fetch(self, task_id, load_dir):
         if self.is_alive:
-            response = requests.get(f'{self.schema}{self.address}/session/remove?'
+            response = requests.get(f'{self.base_url}/task/result?'
+                                    f'session_id={self.session_id}&'
+                                    f'task_id={task_id}', stream=True)
+            if response.status_code == 200:
+                with io.BytesIO(response.content) as tarball:
+                    tarfile.open(fileobj=tarball, format=tarfile.GNU_FORMAT).extractall(load_dir)
+                return True
+            else:
+                raise Exception(response.status_code)
+
+    def kill(self, task_id):
+        if self.is_alive:
+            response = requests.get(f'{self.base_url}/task/kill?'
+                                    f'session_id={self.session_id}&'
+                                    f'task_id={task_id}')
+            if response.status_code == 200:
+                return task_id == json.loads(response.text)['task_id']
+
+    def delete_session(self, session_id):
+        if self.is_alive:
+            response = requests.get(f'{self.base_url}/session/remove?'
                                     f'username={self.username}&'
                                     f'password={self.password}&'
-                                    f'session_id={id}')
+                                    f'session_id={session_id}')
+            if response.status_code == 200:
+                return session_id == json.loads(response.text)['session_id']
+            else:
+                raise Exception(response.text)
 
 
 if __name__ == '__main__':

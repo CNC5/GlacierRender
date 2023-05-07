@@ -42,7 +42,7 @@ class Authman:
             return False
         user = self.db.get_user_by_username(username)[0]
         hashed_password = hash_string(password, user[2])
-        if hashed_password == user[1]:
+        if hashed_password == user.password_hash:
             return True
         return False
 

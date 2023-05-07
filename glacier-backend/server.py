@@ -13,7 +13,8 @@ logging.basicConfig(stream=sys.stdout,
                     format='%(asctime)s %(levelname)-8s %(name)-16s: %(message)s',
                     datefmt='%Y-%m-%d %H:%M:%S')
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFO)
+tornado_logger = logging.getLogger('tornado.access')
+tornado_logger.setLevel(logging.WARNING)
 logging.getLogger('sqlalchemy').setLevel(logging.WARNING)
 
 
@@ -33,16 +34,15 @@ class SessionListHandler(tornado.web.RequestHandler):
     def get(self):
         username = self.get_argument('username')
         password = self.get_argument('password')
-        if auth.is_password_correct(username, password):
-            if auth.is_session_by_username(username):
-                sessions_by_user_list = auth.db.get_session_by_username(username)
-                self.write(json.dumps(sessions_by_user_list))
-            else:
-                self.finish(json.dumps([]))
-        else:
-            self.set_status(400)
-            self.finish('400')
+        if not auth.is_password_correct(username, password):
+            self.set_status(401)
+            self.finish('Unauthorized')
             return
+        if not auth.is_session_by_username(username):
+            self.finish(json.dumps({'sessions': []}))
+            return
+        sessions_by_user_list = auth.db.get_session_by_username(username)
+        self.write(json.dumps({'sessions': sessions_by_user_list}))
 
 
 class SessionRemoveHandler(tornado.web.RequestHandler):
@@ -51,33 +51,31 @@ class SessionRemoveHandler(tornado.web.RequestHandler):
         password = self.get_argument('password')
         session_id = self.get_argument('session_id')
         if not auth.is_password_correct(username, password):
-            self.set_status(404)
-            self.finish('404')
+            self.set_status(401)
+            self.finish('Unauthorized')
             return
-        if auth.is_session_by_username(username):
-            if auth.is_session(session_id):
-                auth.delete_session(session_id)
-                self.write('200')
-        else:
+        if not auth.is_session_by_username(username):
             self.set_status(404)
-            self.finish('404')
+            self.finish('Session does not exist')
             return
+        if auth.is_session(session_id):
+            auth.delete_session(session_id)
+            self.write(json.dumps({'session_id': session_id}))
 
 
 class AuthHandler(tornado.web.RequestHandler):
     def get(self):
         username = self.get_argument('username')
         password = self.get_argument('password')
-        if auth.is_password_correct(username, password):
-            if auth.is_session_by_username(username):
-                self.write(json.dumps({'session_id': auth.db.get_session_by_username(username)[0].id}))
-            else:
-                new_session_id = auth.add_session(username)
-                self.write(json.dumps({'session_id': new_session_id}))
-        else:
-            self.set_status(404)
-            self.finish('404')
+        if not auth.is_password_correct(username, password):
+            self.set_status(401)
+            self.finish('Unauthorized')
             return
+        if not auth.is_session_by_username(username):
+            new_session_id = auth.add_session(username)
+            self.write(json.dumps({'session_id': new_session_id}))
+            return
+        self.write(json.dumps({'session_id': auth.db.get_session_by_username(username)[0].id}))
 
 
 class SpawnHandler(tornado.web.RequestHandler):
@@ -85,9 +83,13 @@ class SpawnHandler(tornado.web.RequestHandler):
         session_id = self.get_argument('session_id')
         start_frame = self.get_argument('start_frame')
         end_frame = self.get_argument('end_frame')
-        if not auth.is_session(session_id) or not start_frame.isdigit() or not end_frame.isdigit():
-            self.set_status(404)
+        if not auth.is_session(session_id):
+            self.set_status(401)
             self.finish('Unauthorized')
+            return
+        if not start_frame.isdigit() or not end_frame.isdigit():
+            self.set_status(403)
+            self.finish('Non-digit frames')
             return
         blend_file = self.request.files['file'][0]
         new_task_id = auth.add_task(session_id, blend_file, start_frame, end_frame)
@@ -98,45 +100,59 @@ class StatHandler(tornado.web.RequestHandler):
     def get(self):
         session_id = self.get_argument('session_id')
         task_id = self.get_argument('task_id')
-        if auth.is_session(session_id) and auth.is_task(task_id):
-            task = auth.db.get_task_by_id(task_id)
-            task_data = task[0]._asdict()
-            progress = str(auth.tasks_by_id[task_id].last_line)
-            task_data.update({'progress': progress})
-            self.write(json.dumps(task_data))
-        else:
-            self.set_status(404)
-            self.finish('404')
+        if not auth.is_session(session_id) or not auth.is_task(task_id):
+            self.set_status(401)
+            self.finish('Unauthorized')
             return
+        task = auth.db.get_task_by_id(task_id)
+        task_data = task[0]._asdict()
+        progress = str(auth.tasks_by_id[task_id].last_line)
+        task_data.update({'progress': progress})
+        self.write(json.dumps(task_data))
 
 
 class ResultHandler(tornado.web.RequestHandler):
     def get(self):
         session_id = self.get_argument('session_id')
         task_id = self.get_argument('task_id')
-        self.write(f'200')
+        if not auth.is_session(session_id) or not auth.is_task(task_id):
+            self.set_status(401)
+            self.finish('Unauthorized')
+            return
+        tar_path = auth.tasks_by_id[task_id].tar_path
+        with open(tar_path, 'rb') as f:
+            data = f.read()
+            self.write(data)
+        self.finish()
 
 
 class KillHandler(tornado.web.RequestHandler):
     def get(self):
         session_id = self.get_argument('session_id')
         task_id = self.get_argument('task_id')
-        if auth.is_session(session_id) and auth.is_task(task_id):
-            auth.tasks_by_id[task_id].kill()
+        if not auth.is_session(session_id):
+            self.set_status(401)
+            self.finish('Unauthorized')
+            return
+        if not auth.is_task(task_id):
+            self.set_status(404)
+            self.finish('Task does not exist')
+            return
+        auth.tasks_by_id[task_id].kill()
+        self.write(json.dumps({'task_id': task_id}))
 
 
 class ListHandler(tornado.web.RequestHandler):
     def get(self):
         session_id = self.get_argument('session_id')
-        if auth.is_session(session_id):
-            if auth.is_task_by_session_id(session_id):
-                self.write(json.dumps(auth.db.get_task_by_session_id(session_id)._asdict()))
-                return
-            else:
-                self.write(json.dumps([]))
-                return
-        self.set_status(404)
-        self.finish('404')
+        if not auth.is_session(session_id):
+            self.set_status(401)
+            self.finish('Unauthorized')
+            return
+        if not auth.is_task_by_session_id(session_id):
+            self.write(json.dumps({}))
+            return
+        self.write(json.dumps(auth.db.get_task_by_session_id(session_id)._asdict()))
 
 
 def make_app():
@@ -154,6 +170,7 @@ def make_app():
 
 async def main_server():
     app = make_app()
+    info_msg('ready to accept connections')
     app.listen(8888)
     await asyncio.Event().wait()
 
