@@ -5,7 +5,8 @@ import tarfile
 
 
 class Backend:
-    def __init__(self):
+    def __init__(self, no_write=False):
+        self.no_write = no_write
         self.is_alive = 0
         self.tasks = []
         self.schema = 'http://'
@@ -23,64 +24,70 @@ class Backend:
         response = requests.get(f'{self.base_url}/login?'
                                 f'username={username}&'
                                 f'password={password}')
-        if response.status_code == 200:
-            self.session_id = json.loads(response.text)['session_id']
-            self.is_alive = 1
-            return True
-        else:
+        if response.status_code != 200:
             raise Exception(response.text)
+        self.session_id = json.loads(response.text)['session_id']
+        self.is_alive = 1
+        return True
 
     def render(self, blend_file_path, start_frame, end_frame):
-        if self.is_alive:
-            response = requests.post(f'{self.base_url}/task/request?'
-                                     f'session_id={self.session_id}&'
-                                     f'start_frame={start_frame}&'
-                                     f'end_frame={end_frame}',
-                                     files={'file': open(blend_file_path, 'rb')})
-            if response.status_code == 200:
-                return json.loads(response.text)
+        if not self.is_alive:
+            raise Exception('Connection is not alive')
+        response = requests.post(f'{self.base_url}/task/request?'
+                                 f'session_id={self.session_id}&'
+                                 f'start_frame={start_frame}&'
+                                 f'end_frame={end_frame}',
+                                 files={'file': open(blend_file_path, 'rb')})
+        if response.status_code != 200:
             raise Exception(response.text)
+        return json.loads(response.text)
 
     def stat(self, task_id):
-        if self.is_alive:
-            response = requests.get(f'{self.base_url}/task/stat?'
-                                    f'session_id={self.session_id}&'
-                                    f'task_id={task_id}')
-            if response.status_code == 200:
-                return json.loads(response.text)
-            else:
-                raise Exception(response.text)
+        if not self.is_alive:
+            raise Exception('Connection is not alive')
+        response = requests.get(f'{self.base_url}/task/stat?'
+                                f'session_id={self.session_id}&'
+                                f'task_id={task_id}')
+        if response.status_code != 200:
+            raise Exception(response.text)
+        return json.loads(response.text)
 
     def fetch(self, task_id, load_dir):
-        if self.is_alive:
-            response = requests.get(f'{self.base_url}/task/result?'
-                                    f'session_id={self.session_id}&'
-                                    f'task_id={task_id}', stream=True)
-            if response.status_code == 200:
-                with io.BytesIO(response.content) as tarball:
-                    tarfile.open(fileobj=tarball, format=tarfile.GNU_FORMAT).extractall(load_dir)
-                return True
-            else:
-                raise Exception(response.status_code)
+        if self.no_write:
+            print('no_write=True, fetching to RAM')
+        if not self.is_alive:
+            raise Exception('Connection is not alive')
+        response = requests.get(f'{self.base_url}/task/result?'
+                                f'session_id={self.session_id}&'
+                                f'task_id={task_id}', stream=True)
+        if response.status_code != 200:
+            raise Exception(response.status_code)
+        if self.no_write:
+            return True
+        with io.BytesIO(response.content) as tarball:
+            tarfile.open(fileobj=tarball, format=tarfile.GNU_FORMAT).extractall(load_dir)
+        return True
 
     def kill(self, task_id):
-        if self.is_alive:
-            response = requests.get(f'{self.base_url}/task/kill?'
-                                    f'session_id={self.session_id}&'
-                                    f'task_id={task_id}')
-            if response.status_code == 200:
-                return task_id == json.loads(response.text)['task_id']
+        if not self.is_alive:
+            raise Exception('Connection is not alive')
+        response = requests.get(f'{self.base_url}/task/kill?'
+                                f'session_id={self.session_id}&'
+                                f'task_id={task_id}')
+        if response.status_code != 200:
+            raise Exception(response.text)
+        return task_id == json.loads(response.text)['task_id']
 
     def delete_session(self, session_id):
-        if self.is_alive:
-            response = requests.get(f'{self.base_url}/session/remove?'
-                                    f'username={self.username}&'
-                                    f'password={self.password}&'
-                                    f'session_id={session_id}')
-            if response.status_code == 200:
-                return session_id == json.loads(response.text)['session_id']
-            else:
-                raise Exception(response.text)
+        if not self.is_alive:
+            raise Exception('Connection is not alive')
+        response = requests.get(f'{self.base_url}/session/remove?'
+                                f'username={self.username}&'
+                                f'password={self.password}&'
+                                f'session_id={session_id}')
+        if response.status_code != 200:
+            raise Exception(response.text)
+        return session_id == json.loads(response.text)['session_id']
 
 
 if __name__ == '__main__':

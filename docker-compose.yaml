@@ -1,5 +1,5 @@
 services:
-  glacier-backend:
+  backend:
     build: ./glacier-backend
     ports:
       - "8888:8888"

@@ -20,21 +20,22 @@ shutdown() {
   echo "Shutdown:"
   separator_with_terminators '-'
   docker compose down
-  separator '='
 }
-
-GLACIER_USER=##USER##
-GLACIER_PASSWORD=##PASS##
 
 trap "shutdown; exit 1" SIGINT
 echo "Build:"
 separator_with_terminators '-'
 docker compose up --build -d
 sleep 1
+docker exec -it glacierrender-backend-1 bash -c "GLACIER_USER=qwerty GLACIER_PASSWORD=12345 python useradd.py"
+separator '='
+echo ""
+echo "Frontend logs:"
+separator_with_terminators '-'
+python general_test.py
 separator '='
 echo ""
 echo "Server logs:"
 separator_with_terminators '-'
-docker exec -it glacierrender-backend-1 bash -c "GLACIER_USER=$GLACIER_USER GLACIER_PASSWORD=$GLACIER_PASSWORD python useradd.py"
-docker logs --follow glacierrender-backend-1
+docker logs glacierrender-backend-1
 shutdown

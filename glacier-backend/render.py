@@ -88,7 +88,7 @@ class Renderer(RenderConfig):
             return_code = blender_process.poll()
             line = blender_process.stdout.readline()
             if line:
-                self.last_line = line
+                self.last_line = line.decode().strip()
             if return_code is not None:
                 if return_code == 0:
                     self.state = 'COMPLETED'

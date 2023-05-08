@@ -10,4 +10,4 @@ RUN tar -xpvf blender.tar.xz && rm blender.tar.xz
 ENV BLENDER_BIN=/home/render_agent/blender-3.5.1-linux-x64/blender
 ADD . /home/render_agent/GlacierRender/glacier-backend/
 WORKDIR /home/render_agent/GlacierRender/glacier-backend
-ENTRYPOINT python -i server.py
+ENTRYPOINT python server.py
