@@ -2,9 +2,8 @@ import hashlib
 import logging
 import time
 from secrets import token_hex
-
-import render
 from database import UserDatabase
+import render
 
 logger = logging.getLogger(__name__)
 
@@ -15,7 +14,7 @@ def hash_string(plaintext, salt):
     return hashed_text.hexdigest()
 
 
-class Authman:
+class AuthManager:
     def __init__(self):
         self.tasks_by_id = {}
         self.db = UserDatabase()
@@ -60,7 +59,7 @@ class Authman:
     def add_task(self, parent_session_id, blend_file, start_frame, end_frame):
         task_id = token_hex(18)
         state = 'CREATED'
-        file_path = f'{self.db.upload_facility}/{task_id}.blend'
+        file_path = f'{self.render_bus.upload_facility}/{task_id}.blend'
         username = self.db.get_session_by_id(parent_session_id)[0].username
         with open(file_path, 'wb') as blend_file_on_disk:
             blend_file_on_disk.write(blend_file['body'])
@@ -87,4 +86,4 @@ class Authman:
 
 
 if __name__ == '__main__':
-    auth = Authman()
+    auth = AuthManager()

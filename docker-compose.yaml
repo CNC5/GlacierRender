@@ -9,6 +9,7 @@ services:
       - DB_NAME=postgres
       - DB_USER=postgres
       - DB_PASS=lolava
+      - UPLOAD_FACILITY=/tmp
     networks:
       - glacier-backbone
     stdin_open: true

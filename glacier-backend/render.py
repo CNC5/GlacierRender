@@ -1,22 +1,16 @@
-import configparser
-import os
 import subprocess
 import threading
 import time
 import logging
+import os
+from config import RenderConfig
 
 logger = logging.getLogger(__name__)
-environment = os.environ
-
-if 'UPLOAD_FACILITY' not in environment:
-    upload_facility = '/tmp'
-else:
-    upload_facility = environment['UPLOAD_FACILITY']
-del environment
 
 
-class RenderBus:
+class RenderBus(RenderConfig):
     def __init__(self):
+        super().__init__()
         self.tasks = []
 
     def scheduler(self):
@@ -44,11 +38,12 @@ class RenderBus:
 render_bus = RenderBus()
 
 
-class Renderer:
+class Renderer(RenderConfig):
     def __init__(self, task_id, blend_file_path, start_frame, end_frame, update_callback):
+        super().__init__()
         self.id = task_id
         self.update_callback = update_callback
-        self.output_dir = f'{upload_facility}/{task_id}/'
+        self.output_dir = f'{self.upload_facility}/{task_id}/'
         self.killed = 0
         self.render_engine = 'CYCLES'
         self.cycles_device = ''
@@ -57,7 +52,6 @@ class Renderer:
                              '-s', start_frame, '-e', end_frame,
                              '-a', '--', '--cycles-device', self.cycles_device]
         self.thread = None
-        self.blender_bin = os.environ['BLENDER_BIN']
         self.is_nvidia_gpu_capable = os.path.isfile('/usr/bin/nvidia-smi')
         self.is_radeon_gpu_capable = 0  # not implemented
         self.blend_file_path = blend_file_path
@@ -72,7 +66,7 @@ class Renderer:
         if not self.is_radeon_gpu_capable and not self.is_nvidia_gpu_capable:
             self.render = self.render_cpu_in_thread
 
-        os.mkdir(f'{upload_facility}/{self.id}')
+        os.mkdir(f'{self.upload_facility}/{self.id}')
         render_bus.tasks.append(self)
 
     def kill(self):
@@ -114,7 +108,7 @@ class Renderer:
     def pack_output(self):
         self.state = 'COMPRESSING'
         self.update_callback(self.id, self.state)
-        self.tar_path = f'{upload_facility}/{self.id}.tar.gz'
+        self.tar_path = f'{self.upload_facility}/{self.id}.tar.gz'
         result = subprocess.run(['tar', '-zcf', self.tar_path, '--directory', self.output_dir, '.'],
                                 stdout=subprocess.DEVNULL,
                                 stderr=subprocess.DEVNULL)

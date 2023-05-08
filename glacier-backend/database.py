@@ -1,6 +1,5 @@
 import json
 import logging
-import os
 import socket
 import time
 from typing import Optional
@@ -8,18 +7,18 @@ from typing import Optional
 import sqlalchemy
 from sqlalchemy import select, delete, update
 from sqlalchemy.orm import Mapped, mapped_column
+from config import DatabaseConfig
 
 
 def wait_for_database_up():
-    db_host = os.environ['DB_HOST']
-    db_port = int(os.environ['DB_PORT'])
+    config = DatabaseConfig()
     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     while True:
         try:
-            s.connect((db_host, db_port))
+            s.connect((config.db_host, config.db_port))
             s.close()
             break
-        except socket.error as ex:
+        except socket.error:
             time.sleep(0.5)
 
 
@@ -75,32 +74,13 @@ class Task(Base):
                f"state={self.state!r})"
 
 
-class UserDatabase:
+class UserDatabase(DatabaseConfig):
     def __init__(self):
-        environment = os.environ
-        if 'DB_HOST' not in environment:
-            logger.error(f'No dbhost variable found')
-        if 'DB_PORT' not in environment:
-            logger.error(f'No dbport variable found')
-        if 'DB_NAME' not in environment:
-            logger.error(f'No dbname variable found')
-        if 'DB_USER' not in environment:
-            logger.error(f'No dbuser variable found')
-        if 'DB_PASS' not in environment:
-            logger.error(f'No dbpass variable found')
-        if 'UPLOAD_FACILITY' not in environment:
-            self.upload_facility = '/tmp'
-        else:
-            self.upload_facility = environment['UPLOAD_FACILITY']
-
-        self.dbhost = environment['DB_HOST']
-        self.dbport = environment['DB_PORT']
-        self.dbname = environment['DB_NAME']
-        self.dbuser = environment['DB_USER']
-        self.dbpass = environment['DB_PASS']
+        super().__init__()
         self.engine = sqlalchemy.create_engine(f'postgresql+psycopg2://'
-                                               f'{self.dbuser}:{self.dbpass}@{self.dbhost}:{self.dbport}/'
-                                               f'{self.dbname}')
+                                               f'{self.db_user}:{self.db_pass}'
+                                               f'@{self.db_host}:{self.db_port}/'
+                                               f'{self.db_name}')
         self.session = sqlalchemy.orm.Session(self.engine)
 
         metadata_root_object = sqlalchemy.MetaData()

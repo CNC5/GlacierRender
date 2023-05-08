@@ -4,9 +4,9 @@ import logging
 import sys
 
 import tornado
-from authenticator import Authman
+from authenticator import AuthManager
 
-auth = Authman()
+auth = AuthManager()
 
 
 def setup_logging():
