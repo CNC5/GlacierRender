@@ -1,14 +1,13 @@
 import json
 import logging
 import os
+import socket
+import time
 from typing import Optional
 
 import sqlalchemy
 from sqlalchemy import select, delete, update
 from sqlalchemy.orm import Mapped, mapped_column
-import socket
-import time
-import os
 
 
 def wait_for_database_up():
@@ -26,18 +25,6 @@ def wait_for_database_up():
 
 wait_for_database_up()
 logger = logging.getLogger(__name__)
-
-
-def info_msg(message):
-    logger.info(message)
-
-
-def warn_msg(message):
-    logger.warning(message)
-
-
-def error_msg(message):
-    logger.error(message)
 
 
 class Base(sqlalchemy.orm.DeclarativeBase):
@@ -92,15 +79,15 @@ class UserDatabase:
     def __init__(self):
         environment = os.environ
         if 'DB_HOST' not in environment:
-            error_msg(f'No dbhost variable found')
+            logger.error(f'No dbhost variable found')
         if 'DB_PORT' not in environment:
-            error_msg(f'No dbport variable found')
+            logger.error(f'No dbport variable found')
         if 'DB_NAME' not in environment:
-            error_msg(f'No dbname variable found')
+            logger.error(f'No dbname variable found')
         if 'DB_USER' not in environment:
-            error_msg(f'No dbuser variable found')
+            logger.error(f'No dbuser variable found')
         if 'DB_PASS' not in environment:
-            error_msg(f'No dbpass variable found')
+            logger.error(f'No dbpass variable found')
         if 'UPLOAD_FACILITY' not in environment:
             self.upload_facility = '/tmp'
         else:

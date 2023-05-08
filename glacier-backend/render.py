@@ -15,33 +15,17 @@ else:
 del environment
 
 
-def debug_msg(message):
-    logger.debug(message)
-
-
-def info_msg(message):
-    logger.info(message)
-
-
-def warn_msg(message):
-    logger.warning(message)
-
-
-def error_msg(message):
-    logger.error(message)
-
-
 class RenderBus:
     def __init__(self):
         self.tasks = []
 
     def scheduler(self):
         is_last_cycle_full = False
-        info_msg('task scheduler start')
+        logger.info('task scheduler start')
         while True:
             if self.tasks:
                 if not is_last_cycle_full:
-                    info_msg('full scheduler cycle')
+                    logger.info('full scheduler cycle')
                 for task in self.tasks:
                     if task.state == 'SCHEDULED':
                         is_last_cycle_full = True
@@ -52,7 +36,7 @@ class RenderBus:
                 time.sleep(0.5)
             else:
                 if is_last_cycle_full:
-                    info_msg('empty scheduler cycle')
+                    logger.info('empty scheduler cycle')
                 is_last_cycle_full = False
                 time.sleep(0.5)
 

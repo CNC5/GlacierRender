@@ -8,26 +8,17 @@ from authenticator import Authman
 
 auth = Authman()
 
-logging.basicConfig(stream=sys.stdout,
-                    level=logging.INFO,
-                    format='%(asctime)s %(levelname)-8s %(name)-16s: %(message)s',
-                    datefmt='%Y-%m-%d %H:%M:%S')
+
+def setup_logging():
+    logging.basicConfig(stream=sys.stdout,
+                        level=logging.INFO,
+                        format='%(asctime)s %(levelname)-8s %(name)-16s: %(message)s',
+                        datefmt='%Y-%m-%d %H:%M:%S')
+    logging.getLogger('tornado.access').setLevel(logging.WARNING)
+    logging.getLogger('sqlalchemy').setLevel(logging.WARNING)
+
+
 logger = logging.getLogger(__name__)
-tornado_logger = logging.getLogger('tornado.access')
-tornado_logger.setLevel(logging.WARNING)
-logging.getLogger('sqlalchemy').setLevel(logging.WARNING)
-
-
-def info_msg(message):
-    logger.info(message)
-
-
-def warn_msg(message):
-    logger.warning(message)
-
-
-def error_msg(message):
-    logger.error(message)
 
 
 class SessionListHandler(tornado.web.RequestHandler):
@@ -170,12 +161,13 @@ def make_app():
 
 async def main_server():
     app = make_app()
-    info_msg('ready to accept connections')
+    logger.info('ready to accept connections')
     app.listen(8888)
     await asyncio.Event().wait()
 
 
 async def main():
+    setup_logging()
     loop = asyncio.get_event_loop()
     await asyncio.gather(loop.run_in_executor(None, auth.render_bus.scheduler), main_server())
 

@@ -1,29 +1,12 @@
 import hashlib
 import logging
-import os
 import time
-import render
 from secrets import token_hex
 
+import render
 from database import UserDatabase
 
 logger = logging.getLogger(__name__)
-
-
-def debug_msg(message):
-    logger.debug(message)
-
-
-def info_msg(message):
-    logger.info(message)
-
-
-def warn_msg(message):
-    logger.warning(message)
-
-
-def error_msg(message):
-    logger.error(message)
 
 
 def hash_string(plaintext, salt):
@@ -87,7 +70,7 @@ class Authman:
         return task_id
 
     def task_updater(self, task_id, new_state):
-        info_msg(f'task {task_id} state changed to {new_state}')
+        logger.info(f'task {task_id} state changed to {new_state}')
         self.db.update_task_state(task_id, new_state)
 
     def is_task(self, task_id):
