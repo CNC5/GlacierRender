@@ -1,17 +1,13 @@
 import hashlib
 import logging
 import time
+from uuid import uuid4
 from secrets import token_hex
 from database import OperatorAliases
 import render
+import argon2
 
 logger = logging.getLogger(__name__)
-
-
-def hash_string(plaintext, salt):
-    hashed_text = hashlib.sha3_256()
-    hashed_text.update(f'{plaintext}{salt}'.encode())
-    return hashed_text.hexdigest()
 
 
 class AuthManager:
@@ -19,27 +15,31 @@ class AuthManager:
         self.tasks_by_id = {}
         self.db = OperatorAliases()
         self.render_bus = render.render_bus
+        self.argon_hasher = argon2.PasswordHasher()
 
     def is_user(self, username):
         return bool(self.db.get_user_by_username(username))
 
-    def is_password_correct(self, username, password):
-        if not self.is_user(username):
+    def is_password_correct(self, username, candidate_password):
+        password_hash = self.db.get_user_by_username(username).password_hash
+        is_password_correct = False
+        try:
+            self.argon_hasher.verify(password_hash, candidate_password)
+            is_password_correct = True
+        except argon2.exceptions.VerifyMismatchError:
+            pass
+        if self.is_user(username):
+            if is_password_correct:
+                return True
+        else:
             return False
-        user = self.db.get_user_by_username(username)
-        hashed_password = hash_string(password, user.salt)
-        if hashed_password == user.password_hash:
-            return True
-        return False
 
     def add_user(self, username, password):
         if self.is_user(username):
             return False
-        salt = token_hex(10)
-        password_hash = hash_string(password, salt)
+        password_hash = self.argon_hasher.hash(password)
         return self.db.add_user(username=username,
-                                password_hash=password_hash,
-                                salt=salt)
+                                password_hash=password_hash)
 
     def add_session(self, username):
         session_id = token_hex(16)
@@ -60,7 +60,7 @@ class AuthManager:
         self.db.delete_session_by_id(session_id)
 
     def add_task(self, parent_session_id, blend_file, start_frame, end_frame):
-        task_id = token_hex(18)
+        task_id = uuid4().hex
         state = 'CREATED'
         file_path = f'{self.render_bus.upload_facility}/{task_id}.blend'
         username = self.db.get_session_by_id(parent_session_id).username

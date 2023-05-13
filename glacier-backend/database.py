@@ -46,12 +46,10 @@ class User(Base):
 
     username: Mapped[Optional[str]] = mapped_column(primary_key=True)
     password_hash: Mapped[Optional[str]]
-    salt: Mapped[Optional[str]]
 
     def __repr__(self) -> str:
         return f"User(username={self.username!r}, " \
-               f"password_hash={self.password_hash!r}, " \
-               f"salt={self.salt!r})"
+               f"password_hash={self.password_hash!r})"
 
 
 @dataclasses.dataclass
