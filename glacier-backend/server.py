@@ -66,7 +66,7 @@ class AuthHandler(tornado.web.RequestHandler):
             new_session_id = auth.add_session(username)
             self.write(json.dumps({'session_id': new_session_id}))
             return
-        self.write(json.dumps({'session_id': auth.db.get_session_by_username(username)[0].id}))
+        self.write(json.dumps({'session_id': auth.db.get_sessions_by_username(username)[0].id}))
 
 
 class SpawnHandler(tornado.web.RequestHandler):
@@ -82,7 +82,7 @@ class SpawnHandler(tornado.web.RequestHandler):
             self.set_status(403)
             self.finish('Non-digit frames')
             return
-        blend_file = self.request.files['file'][0]
+        blend_file = self.request.files['file'][0]['body']
         new_task_id = auth.add_task(session_id, blend_file, start_frame, end_frame)
         self.write(json.dumps({'task_id': new_task_id}))
 
@@ -96,7 +96,7 @@ class StatHandler(tornado.web.RequestHandler):
             self.finish('Unauthorized')
             return
         task = auth.db.get_task_by_id(task_id)
-        task_data = task[0]._asdict()
+        task_data = task.as_dict()
         progress = str(auth.tasks_by_id[task_id].last_line)
         task_data.update({'progress': progress})
         self.write(json.dumps(task_data))
@@ -143,7 +143,7 @@ class ListHandler(tornado.web.RequestHandler):
         if not auth.is_task_by_session_id(session_id):
             self.write(json.dumps({}))
             return
-        self.write(json.dumps(auth.db.get_task_by_session_id(session_id)._asdict()))
+        self.write(json.dumps(auth.db.get_task_by_session_id(session_id).as_dict()))
 
 
 def make_app():

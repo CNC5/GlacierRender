@@ -2,7 +2,7 @@ import hashlib
 import logging
 import time
 from secrets import token_hex
-from database import UserDatabase
+from database import OperatorAliases
 import render
 
 logger = logging.getLogger(__name__)
@@ -17,7 +17,7 @@ def hash_string(plaintext, salt):
 class AuthManager:
     def __init__(self):
         self.tasks_by_id = {}
-        self.db = UserDatabase()
+        self.db = OperatorAliases()
         self.render_bus = render.render_bus
 
     def is_user(self, username):
@@ -26,8 +26,8 @@ class AuthManager:
     def is_password_correct(self, username, password):
         if not self.is_user(username):
             return False
-        user = self.db.get_user_by_username(username)[0]
-        hashed_password = hash_string(password, user[2])
+        user = self.db.get_user_by_username(username)
+        hashed_password = hash_string(password, user.salt)
         if hashed_password == user.password_hash:
             return True
         return False
@@ -37,17 +37,20 @@ class AuthManager:
             return False
         salt = token_hex(10)
         password_hash = hash_string(password, salt)
-        self.db.add_user(username, password_hash, salt)
-        return True
+        return self.db.add_user(username=username,
+                                password_hash=password_hash,
+                                salt=salt)
 
     def add_session(self, username):
         session_id = token_hex(16)
         creation_time = time.time()
-        self.db.add_session(username, session_id, creation_time)
+        self.db.add_session(username=username,
+                            session_id=session_id,
+                            creation_time=creation_time)
         return session_id
 
     def is_session_by_username(self, username):
-        return bool(self.db.get_session_by_username(username))
+        return bool(self.db.get_sessions_by_username(username))
 
     def is_session(self, session_id):
         return bool(self.db.get_session_by_id(session_id))
@@ -60,10 +63,14 @@ class AuthManager:
         task_id = token_hex(18)
         state = 'CREATED'
         file_path = f'{self.render_bus.upload_facility}/{task_id}.blend'
-        username = self.db.get_session_by_id(parent_session_id)[0].username
+        username = self.db.get_session_by_id(parent_session_id).username
         with open(file_path, 'wb') as blend_file_on_disk:
-            blend_file_on_disk.write(blend_file['body'])
-        self.db.add_task(task_id, parent_session_id, username, file_path, state)
+            blend_file_on_disk.write(blend_file)
+        self.db.add_task(task_id=task_id,
+                         parent_session_id=parent_session_id,
+                         username=username,
+                         blend_file_path=file_path,
+                         state=state)
         new_task = render.Renderer(task_id, file_path, start_frame, end_frame, self.task_updater)
         self.tasks_by_id.update({task_id: new_task})
         return task_id
