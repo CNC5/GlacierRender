@@ -117,3 +117,7 @@ class Renderer(RenderConfig):
         else:
             self.state = 'FAILED(TAR)'
         self.update_callback(self.id, self.state)
+
+    def done(self):
+        self.state = 'DONE'
+        self.update_callback(self.id, self.state)

@@ -4,31 +4,56 @@ from bpy.types import PropertyGroup, UIList, Operator, Panel
 
 
 class ListItem(PropertyGroup):
-    """Group of properties representing an item in the list."""
-
     name: StringProperty(
            name="Name",
-           description="A name for this item",
+           description="A name for this task",
            default="Untitled")
 
-    random_prop: StringProperty(
-           name="Any other property you want",
-           description="",
-           default="")
+    state: StringProperty(
+           name="State",
+           description="This task state",
+           default="SCHEDULED")
+
+    progress: StringProperty(
+           name="Progress",
+           description="This task progress",
+           default="0")
+
+    time_left: StringProperty(
+           name="ETA",
+           description="This task ETA",
+           default="00:00:00")
 
 
 class MY_UL_List(UIList):
-    """Demo UIList."""
-
-    def draw_item(self, context, layout, data, item, icon, active_data,
+    def draw_item(self, context, layout, data, task, icon, active_data,
                   active_propname, index):
 
-        # We could write some code to decide which icon to use here...
-        custom_icon = 'OBJECT_DATAMODE'
+        if task.state == 'SCHEDULED':
+            custom_icon = 'THREE_DOTS'
+        elif task.state == 'RUNNING':
+            custom_icon = 'PLAY'
+        elif task.state == 'COMPLETED':
+            custom_icon = 'PACKAGE'
+        elif task.state == 'COMPRESSING':
+            custom_icon = 'TIME'
+        elif task.state == 'PACKED':
+            custom_icon = 'OBJECT_DATAMODE'
+        elif task.state == 'DONE':
+            custom_icon = 'CHECKMARK'
+        elif task.state == 'KILLED':
+            custom_icon = 'X'
+        else:
+            custom_icon = 'ERROR'
 
-        # Make sure your code supports all 3 layout types
         if self.layout_type in {'DEFAULT', 'COMPACT'}:
-            layout.label(text=item.name, icon = custom_icon)
+            layout.label(text=task.name, icon = custom_icon)
+            layout.label(text=task.progress)
+            if task.time_left == '00:00:00':
+                layout.label(text='∞')
+            else:
+                layout.label(text=task.time_left)
+            layout.label(text=task.state)
 
         elif self.layout_type in {'GRID'}:
             layout.alignment = 'CENTER'
@@ -36,8 +61,6 @@ class MY_UL_List(UIList):
 
 
 class LIST_OT_NewItem(Operator):
-    """Add a new item to the list."""
-
     bl_idname = "my_list.new_item"
     bl_label = "Add a new item"
 
@@ -48,8 +71,6 @@ class LIST_OT_NewItem(Operator):
 
 
 class LIST_OT_DeleteItem(Operator):
-    """Delete the selected item from the list."""
-
     bl_idname = "my_list.delete_item"
     bl_label = "Deletes an item"
 
@@ -68,8 +89,6 @@ class LIST_OT_DeleteItem(Operator):
 
 
 class LIST_OT_MoveItem(Operator):
-    """Move an item in the list."""
-
     bl_idname = "my_list.move_item"
     bl_label = "Move an item in the list"
 
@@ -81,8 +100,6 @@ class LIST_OT_MoveItem(Operator):
         return context.scene.my_list
 
     def move_index(self):
-        """ Move index of an item render queue while clamping it. """
-
         index = bpy.context.scene.list_index
         list_length = len(bpy.context.scene.my_list) - 1  # (index starts at 0)
         new_index = index + (-1 if self.direction == 'UP' else 1)
@@ -101,8 +118,6 @@ class LIST_OT_MoveItem(Operator):
 
 
 class PT_ListExample(Panel):
-    """Demo panel for UI list Tutorial."""
-
     bl_label = "UI_List Demo"
     bl_idname = "SCENE_PT_LIST_DEMO"
     bl_space_type = 'PROPERTIES'
@@ -113,6 +128,11 @@ class PT_ListExample(Panel):
         layout = self.layout
         scene = context.scene
 
+        row = layout.row()
+        row.label(text='Name')
+        row.label(text='Progress')
+        row.label(text='ETA')
+        row.label(text='State')
         row = layout.row()
         row.template_list("MY_UL_List", "The_List", scene,
                           "my_list", scene, "list_index")
@@ -128,7 +148,7 @@ class PT_ListExample(Panel):
 
             row = layout.row()
             row.prop(item, "name")
-            row.prop(item, "random_prop")
+            row.prop(item, "state")
 
 
 def register():

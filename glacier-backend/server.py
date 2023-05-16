@@ -66,7 +66,7 @@ class AuthHandler(tornado.web.RequestHandler):
             new_session_id = auth.add_session(username)
             self.write(json.dumps({'session_id': new_session_id}))
             return
-        self.write(json.dumps({'session_id': auth.db.get_sessions_by_username(username)[0].id}))
+        self.write(json.dumps({'session_id': auth.db.get_sessions_by_username(username)[0].session_id}))
 
 
 class SpawnHandler(tornado.web.RequestHandler):
@@ -74,6 +74,7 @@ class SpawnHandler(tornado.web.RequestHandler):
         session_id = self.get_argument('session_id')
         start_frame = self.get_argument('start_frame')
         end_frame = self.get_argument('end_frame')
+        task_name = self.get_argument('task_name')
         if not auth.is_session(session_id):
             self.set_status(401)
             self.finish('Unauthorized')
@@ -83,7 +84,7 @@ class SpawnHandler(tornado.web.RequestHandler):
             self.finish('Non-digit frames')
             return
         blend_file = self.request.files['file'][0]['body']
-        new_task_id = auth.add_task(session_id, blend_file, start_frame, end_frame)
+        new_task_id = auth.add_task(task_name, session_id, blend_file, start_frame, end_frame)
         self.write(json.dumps({'task_id': new_task_id}))
 
 
@@ -114,6 +115,7 @@ class ResultHandler(tornado.web.RequestHandler):
         with open(tar_path, 'rb') as f:
             data = f.read()
             self.write(data)
+        auth.tasks_by_id[task_id].done()
         self.finish()
 
 
@@ -143,7 +145,12 @@ class ListHandler(tornado.web.RequestHandler):
         if not auth.is_task_by_session_id(session_id):
             self.write(json.dumps({}))
             return
-        self.write(json.dumps(auth.db.get_task_by_session_id(session_id).as_dict()))
+        task_list = [task.as_dict() for task in auth.db.get_tasks_by_session_id(session_id)]
+        for task in task_list:
+            task_id = task['task_id']
+            progress = str(auth.tasks_by_id[task_id].last_line)
+            task.update({'progress': progress})
+        self.write(json.dumps(task_list))
 
 
 def make_app():
