@@ -1,11 +1,12 @@
-import hashlib
 import logging
 import time
-from uuid import uuid4
 from secrets import token_hex
-from database import OperatorAliases
-import render
+from uuid import uuid4
+
 import argon2
+
+import render
+from database import OperatorAliases
 
 logger = logging.getLogger(__name__)
 
@@ -21,18 +22,27 @@ class AuthManager:
         return bool(self.db.get_user_by_username(username))
 
     def is_password_correct(self, username, candidate_password):
-        password_hash = self.db.get_user_by_username(username).password_hash
+        expected_end_time = time.time() + 5
+        user = self.db.get_user_by_username(username)
         is_password_correct = False
-        try:
-            self.argon_hasher.verify(password_hash, candidate_password)
-            is_password_correct = True
-        except argon2.exceptions.VerifyMismatchError:
-            pass
-        if self.is_user(username):
-            if is_password_correct:
-                return True
+        if user:
+            password_hash = user.password_hash
+            user_exists = True
         else:
-            return False
+            user_exists = False
+        if user_exists:
+            try:
+                self.argon_hasher.verify(password_hash, candidate_password)
+                is_password_correct = True
+            except argon2.exceptions.VerifyMismatchError:
+                pass
+        if user_exists:
+            if is_password_correct:
+                auth_result = True
+        else:
+            auth_result = False
+        time.sleep(expected_end_time - time.time())
+        return auth_result
 
     def add_user(self, username, password):
         if self.is_user(username):
@@ -59,14 +69,15 @@ class AuthManager:
         self.db.delete_task_by_session_id(session_id)
         self.db.delete_session_by_id(session_id)
 
-    def add_task(self, parent_session_id, blend_file, start_frame, end_frame):
+    def add_task(self, task_name, parent_session_id, blend_file, start_frame, end_frame):
         task_id = uuid4().hex
         state = 'CREATED'
         file_path = f'{self.render_bus.upload_facility}/{task_id}.blend'
         username = self.db.get_session_by_id(parent_session_id).username
         with open(file_path, 'wb') as blend_file_on_disk:
             blend_file_on_disk.write(blend_file)
-        self.db.add_task(task_id=task_id,
+        self.db.add_task(task_name=task_name,
+                         task_id=task_id,
                          parent_session_id=parent_session_id,
                          username=username,
                          blend_file_path=file_path,
@@ -83,7 +94,7 @@ class AuthManager:
         return bool(self.db.get_task_by_id(task_id))
 
     def is_task_by_session_id(self, session_id):
-        return bool(self.db.get_task_by_session_id(session_id))
+        return bool(self.db.get_tasks_by_session_id(session_id))
 
     def delete_task(self, task_id):
         self.db.delete_task_by_id(task_id)

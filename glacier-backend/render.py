@@ -53,7 +53,6 @@ class Renderer(RenderConfig):
                              '-a', '--', '--cycles-device', self.cycles_device]
         self.thread = None
         self.is_nvidia_gpu_capable = os.path.isfile('/usr/bin/nvidia-smi')
-        self.is_radeon_gpu_capable = 0  # not implemented
         self.blend_file_path = blend_file_path
         self.last_line = ''
         self.state = 'SCHEDULED'
@@ -61,9 +60,7 @@ class Renderer(RenderConfig):
         self.tar_path = ''
         if self.is_nvidia_gpu_capable:
             self.render = self.render_gpu_nvidia_in_thread
-        if self.is_radeon_gpu_capable:
-            pass  # not implemented
-        if not self.is_radeon_gpu_capable and not self.is_nvidia_gpu_capable:
+        if not self.is_nvidia_gpu_capable:
             self.render = self.render_cpu_in_thread
 
         os.mkdir(f'{self.upload_facility}/{self.id}')
@@ -98,11 +95,11 @@ class Renderer(RenderConfig):
         self.update_callback(self.id, self.state)
 
     def render_gpu_nvidia_in_thread(self):
-        self.thread = threading.Thread(target=self.render_any, args=['CUDA'])
+        self.thread = threading.Thread(target=self.render_any, args=('CUDA',))
         self.thread.start()
 
     def render_cpu_in_thread(self):
-        self.thread = threading.Thread(target=self.render_any, args=['CPU'])
+        self.thread = threading.Thread(target=self.render_any, args=('CPU',))
         self.thread.start()
 
     def pack_output(self):
@@ -116,4 +113,8 @@ class Renderer(RenderConfig):
             self.state = 'PACKED'
         else:
             self.state = 'FAILED(TAR)'
+        self.update_callback(self.id, self.state)
+
+    def done(self):
+        self.state = 'DONE'
         self.update_callback(self.id, self.state)

@@ -32,6 +32,7 @@ separator '='
 echo ""
 echo "Frontend logs:"
 separator_with_terminators '-'
+source ./venv/bin/activate
 python general_test.py
 separator '='
 echo ""

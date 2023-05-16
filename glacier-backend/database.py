@@ -70,6 +70,7 @@ class Session(Base):
 class Task(Base):
     __tablename__ = "task_table"
 
+    task_name: Mapped[Optional[str]]
     task_id: Mapped[Optional[str]] = mapped_column(primary_key=True)
     parent_session_id: Mapped[Optional[str]]
     username: Mapped[Optional[str]]
@@ -77,7 +78,8 @@ class Task(Base):
     state: Mapped[Optional[str]]
 
     def __repr__(self) -> str:
-        return f"Task(task_id={self.task_id!r}, " \
+        return f"Task(task_name={self.task_name!r}, " \
+               f"task_id={self.task_id!r}, " \
                f"parent_session_id={self.parent_session_id!r}, " \
                f"username={self.username!r}, " \
                f"blend_file_path={self.blend_file_path!r}, " \
@@ -120,6 +122,8 @@ class DatabaseOperator:
             rows = database_session.execute(
                 sqlalchemy.select(object_class)
                 .where(object_class_column_filter)).fetchall()
+        if rows:
+            rows = rows[0]
         return rows
 
     # database_operator_instance.update_row(Session, Session.username == 'Spongebob', id='1x1')
@@ -163,9 +167,6 @@ class OperatorAliases(DatabaseOperator):
     def delete_session_by_id(self, session_id: str) -> bool:
         return self.delete_row(Session, Session.session_id == session_id)
 
-    def get_session_tasks_by_id(self, session_id: str):
-        return self.query_rows(Task, Task.parent_session_id == session_id)
-
     def add_task(self, **kwvalues) -> bool:
         return self.insert_rows([Task(**kwvalues)])
 
@@ -175,7 +176,7 @@ class OperatorAliases(DatabaseOperator):
     def get_task_by_id(self, task_id: str):
         return self.query_row_by_primary_field(Task, task_id)
 
-    def get_task_by_session_id(self, session_id: str):
+    def get_tasks_by_session_id(self, session_id: str):
         return self.query_rows(Task, Task.parent_session_id == session_id)
 
     def delete_task_by_id(self, task_id: str) -> bool:
