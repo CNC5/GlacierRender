@@ -46,22 +46,18 @@ class Renderer(RenderConfig):
         self.output_dir = f'{self.upload_facility}/{task_id}/'
         self.killed = 0
         self.render_engine = 'CYCLES'
-        self.cycles_device = ''
+        self.cycles_device = 'CUDA'
         self.blender_args = ['-E', self.render_engine,
                              '-o', self.output_dir, '-noaudio',
                              '-s', start_frame, '-e', end_frame,
                              '-a', '--', '--cycles-device', self.cycles_device]
         self.thread = None
-        self.is_nvidia_gpu_capable = os.path.isfile('/usr/bin/nvidia-smi')
         self.blend_file_path = blend_file_path
         self.last_line = ''
         self.state = 'SCHEDULED'
         self.update_callback(self.id, self.state)
         self.tar_path = ''
-        if self.is_nvidia_gpu_capable:
-            self.render = self.render_gpu_nvidia_in_thread
-        if not self.is_nvidia_gpu_capable:
-            self.render = self.render_cpu_in_thread
+        self.render = self.render_gpu_nvidia_in_thread
 
         os.mkdir(f'{self.upload_facility}/{self.id}')
         render_bus.tasks.append(self)
@@ -69,8 +65,7 @@ class Renderer(RenderConfig):
     def kill(self):
         self.killed = 1
 
-    def render_any(self, cycles_device):
-        self.cycles_device = cycles_device
+    def render_gpu_nvidia(self):
         blender_process = subprocess.Popen(
             [self.blender_bin, '-b', self.blend_file_path] + self.blender_args,
             stdout=subprocess.PIPE,
@@ -95,11 +90,7 @@ class Renderer(RenderConfig):
         self.update_callback(self.id, self.state)
 
     def render_gpu_nvidia_in_thread(self):
-        self.thread = threading.Thread(target=self.render_any, args=(self, 'CUDA',))
-        self.thread.start()
-
-    def render_cpu_in_thread(self):
-        self.thread = threading.Thread(target=self.render_any, args=(self, 'CPU',))
+        self.thread = threading.Thread(target=self.render_gpu_nvidia)
         self.thread.start()
 
     def pack_output(self):
