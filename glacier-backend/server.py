@@ -152,6 +152,7 @@ class ListHandler(tornado.web.RequestHandler):
         task_list = [task[0].as_dict() for task in auth.db.get_tasks_by_session_id(session_id)]
         for task in task_list:
             task_id = task['task_id']
+            logger.error(auth.render_bus.tasks_by_id)
             progress = str(auth.render_bus.tasks_by_id[task_id].last_line)
             task.update({'progress': progress})
         self.write(json.dumps(task_list))

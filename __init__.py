@@ -193,7 +193,12 @@ class Backend:
         while not self.is_alive:
             time.sleep(0.1)
         while not self.killed:
-            remote_task_dict = self.list_session_tasks()
+            try:
+                remote_task_dict = self.list_session_tasks()
+            except Exception as e:
+                logger.error(e)
+                time.sleep(self.task_refresh_delay)
+                continue
             if remote_task_dict:
                 self.task_list.clear()
                 logger.debug(f'rebuild from {remote_task_dict}')
