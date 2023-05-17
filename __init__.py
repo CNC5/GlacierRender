@@ -122,6 +122,7 @@ class Backend:
                                 f'session_id={self.session_id}')
         if response.status_code != 200:
             raise Exception(response.text)
+        logger.debug(response.text)
         return self.task_list_to_id_dict(json.loads(response.text))
 
     def kill(self, task_id):

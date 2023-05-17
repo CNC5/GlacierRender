@@ -95,11 +95,11 @@ class Renderer(RenderConfig):
         self.update_callback(self.id, self.state)
 
     def render_gpu_nvidia_in_thread(self):
-        self.thread = threading.Thread(target=self.render_any, args=('CUDA',))
+        self.thread = threading.Thread(target=self.render_any, args=(self, 'CUDA',))
         self.thread.start()
 
     def render_cpu_in_thread(self):
-        self.thread = threading.Thread(target=self.render_any, args=('CPU',))
+        self.thread = threading.Thread(target=self.render_any, args=(self, 'CPU',))
         self.thread.start()
 
     def pack_output(self):

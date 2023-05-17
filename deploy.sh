@@ -35,6 +35,6 @@ separator '='
 echo ""
 echo "Server logs:"
 separator_with_terminators '-'
-docker exec -it glacierrender-backend-1 bash -c "GLACIER_USER=$GLACIER_USER GLACIER_PASSWORD=$GLACIER_PASSWORD python useradd.py"
+docker exec -it glacierrender-backend-1 bash -c "GLACIER_USER=$GLACIER_USER GLACIER_PASSWORD=$GLACIER_PASSWORD python3 useradd.py"
 docker logs --follow glacierrender-backend-1
 shutdown

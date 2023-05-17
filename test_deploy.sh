@@ -27,7 +27,7 @@ echo "Build:"
 separator_with_terminators '-'
 docker compose up --build -d
 sleep 1
-docker exec -it glacierrender-backend-1 bash -c "GLACIER_USER=qwerty GLACIER_PASSWORD=12345 python useradd.py"
+docker exec -it glacierrender-backend-1 bash -c "GLACIER_USER=qwerty GLACIER_PASSWORD=12345 python3 useradd.py"
 separator '='
 echo ""
 echo "Frontend logs:"
