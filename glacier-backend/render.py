@@ -3,6 +3,7 @@ import threading
 import time
 import logging
 import os
+import shutil
 from config import RenderConfig
 
 logger = logging.getLogger(__name__)
@@ -117,6 +118,6 @@ class Renderer(RenderConfig):
 
     def cleanup(self):
         os.remove(self.blend_file_path)
-        os.rmdir(self.output_dir)
+        shutil.rmtree(self.output_dir, ignore_errors=True)
         if self.tar_path:
             os.remove(self.tar_path)
