@@ -98,7 +98,7 @@ class StatHandler(tornado.web.RequestHandler):
             return
         task = auth.db.get_task_by_id(task_id)
         task_data = task.as_dict()
-        progress = str(auth.tasks_by_id[task_id].last_line)
+        progress = str(auth.render_bus.tasks_by_id[task_id].last_line)
         task_data.update({'progress': progress})
         self.write(json.dumps(task_data))
 
@@ -111,7 +111,7 @@ class ResultHandler(tornado.web.RequestHandler):
             self.set_status(401)
             self.finish('Unauthorized')
             return
-        tar_path = auth.tasks_by_id[task_id].tar_path
+        tar_path = auth.render_bus.tasks_by_id[task_id].tar_path
         if not tar_path:
             self.set_status(400)
             self.finish('Task is not complete')
@@ -119,7 +119,7 @@ class ResultHandler(tornado.web.RequestHandler):
         with open(tar_path, 'rb') as f:
             data = f.read()
             self.write(data)
-        auth.tasks_by_id[task_id].done()
+        auth.render_bus.tasks_by_id[task_id].done()
         self.finish()
 
 
@@ -135,7 +135,7 @@ class KillHandler(tornado.web.RequestHandler):
             self.set_status(404)
             self.finish('Task does not exist')
             return
-        auth.tasks_by_id[task_id].kill()
+        auth.render_bus.tasks_by_id[task_id].kill()
         self.write(json.dumps({'task_id': task_id}))
 
 
@@ -152,7 +152,7 @@ class ListHandler(tornado.web.RequestHandler):
         task_list = [task[0].as_dict() for task in auth.db.get_tasks_by_session_id(session_id)]
         for task in task_list:
             task_id = task['task_id']
-            progress = str(auth.tasks_by_id[task_id].last_line)
+            progress = str(auth.render_bus.tasks_by_id[task_id].last_line)
             task.update({'progress': progress})
         self.write(json.dumps(task_list))
 
@@ -170,7 +170,6 @@ class DeleteHandler(tornado.web.RequestHandler):
             self.finish('Task does not exist')
             return
         auth.render_bus.delete_task(task_id)
-        del auth.tasks_by_id[task_id]
         self.write(json.dumps({'task_id': task_id}))
 
 

@@ -13,7 +13,6 @@ logger = logging.getLogger(__name__)
 
 class AuthManager:
     def __init__(self):
-        self.tasks_by_id = {}
         self.db = OperatorAliases()
         self.render_bus = render.render_bus
         self.argon_hasher = argon2.PasswordHasher()
@@ -83,7 +82,6 @@ class AuthManager:
                          blend_file_path=file_path,
                          state=state)
         new_task = render.Renderer(task_id, file_path, start_frame, end_frame, self.task_updater)
-        self.tasks_by_id.update({task_id: new_task})
         return task_id
 
     def task_updater(self, task_id, new_state):

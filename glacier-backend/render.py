@@ -11,16 +11,16 @@ logger = logging.getLogger(__name__)
 class RenderBus(RenderConfig):
     def __init__(self):
         super().__init__()
-        self.tasks = []
+        self.tasks_by_id = {}
 
     def scheduler(self):
         is_last_cycle_full = False
         logger.info('task scheduler start')
         while True:
-            if self.tasks:
+            if self.tasks_by_id:
                 if not is_last_cycle_full:
                     logger.info('full scheduler cycle')
-                for task in self.tasks:
+                for task in self.tasks_by_id.values():
                     if task.state == 'SCHEDULED':
                         is_last_cycle_full = True
                         task.render()
@@ -35,14 +35,8 @@ class RenderBus(RenderConfig):
                 time.sleep(0.5)
 
     def delete_task(self, task_id):
-        for index, task in enumerate(self.tasks):
-            if task.id == task_id:
-                target_index = index
-                break
-        if not target_index:
-            return False
-        self.tasks[target_index].cleanup()
-        self.tasks.pop(target_index)
+        task = self.tasks_by_id.pop(task_id)
+        task.cleanup()
         return True
 
 
@@ -71,7 +65,7 @@ class Renderer(RenderConfig):
         self.render = self.render_gpu_nvidia_in_thread
 
         os.mkdir(f'{self.upload_facility}/{self.id}')
-        render_bus.tasks.append(self)
+        render_bus.tasks_by_id.update({task_id: self})
 
     def kill(self):
         self.killed = 1
