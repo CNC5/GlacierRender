@@ -424,7 +424,7 @@ class RENDER_PT_ManagementPanel(Panel, RENDER_PT_Any):
             row.operator('wm.delete_task', icon='TRASH')
 
 
-backend = Backend(insecure=True)
+backend = Backend()
 
 
 def key_path_update_callback(self,  context):

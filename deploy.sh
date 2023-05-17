@@ -23,8 +23,8 @@ shutdown() {
   separator '='
 }
 
-GLACIER_USER=qwerty
-GLACIER_PASSWORD=12345
+GLACIER_USER=##USER##
+GLACIER_PASSWORD=##PASS##
 
 trap "shutdown; exit 1" SIGINT
 echo "Build:"
