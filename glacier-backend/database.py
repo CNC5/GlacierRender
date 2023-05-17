@@ -122,8 +122,6 @@ class DatabaseOperator:
             rows = database_session.execute(
                 sqlalchemy.select(object_class)
                 .where(object_class_column_filter)).fetchall()
-        if rows:
-            rows = rows[0]
         return rows
 
     # database_operator_instance.update_row(Session, Session.username == 'Spongebob', id='1x1')
