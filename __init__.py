@@ -218,6 +218,13 @@ class Backend:
         exit()
 
 
+backend = Backend()
+
+
+def task_list_binder_from_context(context):
+    backend.task_list = context.scene.task_list
+
+
 class ListItem(PropertyGroup):
     id: StringProperty(
            name='Id',
@@ -246,6 +253,7 @@ class WM_OT_ScheduleTask(Operator):
     bl_description = 'Render current blend file'
 
     def execute(self, context):
+        task_list_binder_from_context(context)
         if not backend.is_alive:
             self.report({'ERROR'}, 'Backend is not connected')
             return {'CANCELLED'}
@@ -278,6 +286,7 @@ class WM_OT_CancelTask(Operator):
         return context.scene.task_list
 
     def execute(self, context):
+        task_list_binder_from_context(context)
         if not backend.is_alive:
             self.report({'ERROR'}, 'Backend is not connected')
             return {'CANCELLED'}
@@ -296,6 +305,7 @@ class WM_OT_DeleteTask(Operator):
         return context.scene.task_list
 
     def execute(self, context):
+        task_list_binder_from_context(context)
         if not backend.is_alive:
             self.report({'ERROR'}, 'Backend is not connected')
             return {'CANCELLED'}
@@ -310,6 +320,7 @@ class WM_OT_DownloadTaskResult(Operator):
     bl_description = 'Download rendered frames'
 
     def execute(self, context):
+        task_list_binder_from_context(context)
         if not backend.is_alive:
             self.report({'ERROR'}, 'Backend is not connected')
             return {'CANCELLED'}
@@ -366,6 +377,7 @@ class RENDER_PT_MainPanel(Panel, RENDER_PT_Any):
     bl_idname = 'RENDER_PT_main_panel'
 
     def draw(self, context):
+        task_list_binder_from_context(context)
         if bpy.context.engine == 'CYCLES':
             self.glacier_enabled(context)
         else:
@@ -406,6 +418,7 @@ class RENDER_PT_ManagementPanel(Panel, RENDER_PT_Any):
         return bpy.context.engine == 'CYCLES'
 
     def draw(self, context):
+        task_list_binder_from_context(context)
         layout = self.layout
         scene = context.scene
 
@@ -424,10 +437,8 @@ class RENDER_PT_ManagementPanel(Panel, RENDER_PT_Any):
             row.operator('wm.delete_task', icon='TRASH')
 
 
-backend = Backend()
-
-
 def key_path_update_callback(self,  context):
+    task_list_binder_from_context(context)
     file_path = bpy.path.abspath(bpy.context.scene.glacier.key_profile_path)
     if not file_path:
         return
@@ -473,7 +484,6 @@ def register():
     bpy.types.Scene.task_list = CollectionProperty(type=ListItem)
     bpy.types.Scene.list_index = bpy.props.IntProperty(name='Index for task_list',
                                                        default=0)
-    backend.task_list = bpy.context.scene.task_list
     daemon_cmd_processor = threading.Thread(target=backend.command_queue_processor)
     daemon_list_updater = threading.Thread(target=backend.task_list_updater)
     daemon_cmd_processor.daemon = True
