@@ -116,6 +116,7 @@ class Renderer(RenderConfig):
         self.update_callback(self.id, self.state)
 
     def cleanup(self):
-        os.rmdir(self.output_dir)
-        os.rmdir(self.tar_path)
         os.rmdir(self.blend_file_path)
+        os.rmdir(self.output_dir)
+        if self.tar_path:
+            os.rmdir(self.tar_path)
