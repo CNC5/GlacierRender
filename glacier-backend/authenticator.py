@@ -98,6 +98,7 @@ class AuthManager:
 
     def delete_task(self, task_id):
         self.db.delete_task_by_id(task_id)
+        self.render_bus.delete_task(task_id)
 
     def __del__(self):
         del self.db

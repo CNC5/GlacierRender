@@ -41,13 +41,16 @@ logger = logging.getLogger(__name__)
 
 
 class Backend:
-    def __init__(self, no_write=False):
+    def __init__(self, no_write=False, insecure=False):
         self.task_refresh_delay = 0.5
         self.cmd_refresh_delay = 0.1
         self.no_write = no_write
         self.is_alive = False
         self.killed = False
-        self.schema = 'http://'
+        if insecure:
+            self.schema = 'http://'
+        else:
+            self.schema = 'https://'
         self.address = ''
         self.session_id = ''
         self.username = ''
@@ -135,6 +138,16 @@ class Backend:
             raise Exception(response.text)
         return task_id == json.loads(response.text)['task_id']
 
+    def delete_task(self, task_id):
+        if not self.is_alive:
+            raise Exception('Connection is not alive')
+        response = requests.get(f'{self.base_url}/task/delete?'
+                                f'session_id={self.session_id}&'
+                                f'task_id={task_id}')
+        if response.status_code != 200:
+            raise Exception(response.text)
+        return task_id == json.loads(response.text)['task_id']
+
     def delete_session(self, session_id):
         if not self.is_alive:
             raise Exception('Connection is not alive')
@@ -164,6 +177,8 @@ class Backend:
                         self.fetch(*args)
                     elif func == 'kill':
                         self.kill(*args)
+                    elif func == 'delete':
+                        self.delete_task(*args)
                     else:
                         pass
                 except requests.exceptions.ConnectionError:
@@ -219,11 +234,6 @@ class ListItem(PropertyGroup):
            description='This task progress',
            default='0/0')
 
-    time_left: StringProperty(
-           name='ETA',
-           description='This task ETA',
-           default='00:00:00')
-
 
 class WM_OT_ScheduleTask(Operator):
     bl_idname = 'wm.schedule_task'
@@ -231,6 +241,17 @@ class WM_OT_ScheduleTask(Operator):
     bl_description = 'Render current blend file'
 
     def execute(self, context):
+        if not backend.is_alive:
+            self.report({'ERROR'}, 'Backend is not connected')
+            return {'CANCELLED'}
+        if not bpy.data.is_saved:
+            self.report({'ERROR'}, 'Current blend file is not saved')
+            return {'CANCELLED'}
+        task_name = bpy.path.basename(bpy.data.filepath)
+        task_name = str(task_name).split('.')[0]
+        blend_file_path = bpy.path.abspath(bpy.data.filepath)
+        bpy.ops.file.pack_all()
+        bpy.ops.wm.save_as_mainfile(filepath=blend_file_path)
         scene = context.scene
         if context.scene.glacier.is_animation:
             frame_start = scene.frame_start
@@ -238,8 +259,7 @@ class WM_OT_ScheduleTask(Operator):
         else:
             frame_start = scene.frame_current
             frame_end = scene.frame_current
-        blend_file_path = '/home/n/Documents/Blends/cube.blend'
-        backend.command_queue.append(['render', 'Cube', blend_file_path, frame_start, frame_end])
+        backend.command_queue.append(['render', task_name, blend_file_path, frame_start, frame_end])
         return{'FINISHED'}
 
 
@@ -253,10 +273,30 @@ class WM_OT_CancelTask(Operator):
         return context.scene.task_list
 
     def execute(self, context):
+        if not backend.is_alive:
+            self.report({'ERROR'}, 'Backend is not connected')
+            return {'CANCELLED'}
         selected_task = context.scene.task_list[bpy.context.scene.list_index]
         backend.command_queue.append(['kill', selected_task.id])
         return{'FINISHED'}
 
+
+class WM_OT_DeleteTask(Operator):
+    bl_label = 'Delete'
+    bl_idname = 'wm.delete_task'
+    bl_description = 'Delete the task'
+
+    @classmethod
+    def poll(cls, context):
+        return context.scene.task_list
+
+    def execute(self, context):
+        if not backend.is_alive:
+            self.report({'ERROR'}, 'Backend is not connected')
+            return {'CANCELLED'}
+        selected_task = context.scene.task_list[bpy.context.scene.list_index]
+        backend.command_queue.append(['delete', selected_task.id])
+        return{'FINISHED'}
 
 
 class WM_OT_DownloadTaskResult(Operator):
@@ -265,8 +305,14 @@ class WM_OT_DownloadTaskResult(Operator):
     bl_description = 'Download rendered frames'
 
     def execute(self, context):
-        download_dir = '/tmp/'
+        if not backend.is_alive:
+            self.report({'ERROR'}, 'Backend is not connected')
+            return {'CANCELLED'}
         selected_task = context.scene.task_list[bpy.context.scene.list_index]
+        if selected_task.state not in ['PACKED', 'DONE']:
+            self.report({'ERROR'}, 'Task is not complete')
+            return {'CANCELLED'}
+        download_dir = bpy.path.abspath(bpy.context.scene.render.filepath)
         backend.command_queue.append(['fetch', selected_task.id, download_dir])
         return {'FINISHED'}
 
@@ -297,10 +343,6 @@ class MY_UL_List(UIList):
         if self.layout_type in {'DEFAULT', 'COMPACT'}:
             layout.label(text=task.name, icon=custom_icon)
             layout.label(text=task.progress)
-            if task.time_left == '00:00:00':
-                layout.label(text='∞')
-            else:
-                layout.label(text=task.time_left)
             layout.label(text=task.state)
 
         elif self.layout_type in {'GRID'}:
@@ -365,28 +407,23 @@ class RENDER_PT_ManagementPanel(Panel, RENDER_PT_Any):
         row = layout.row()
         row.label(text='Name')
         row.label(text='Progress')
-        row.label(text='ETA')
         row.label(text='State')
         row = layout.row()
         row.template_list('MY_UL_List', 'The_List', scene,
                           'task_list', scene, 'list_index')
 
         if scene.list_index >= 0 and scene.task_list:
-            item = scene.task_list[scene.list_index]
-
-            row = layout.row()
-            row.prop(item, 'name')
-
             row = layout.row(align=True)
             row.operator('wm.cancel_task', icon='CANCEL')
             row.operator('wm.download_task_result', icon='TRIA_DOWN_BAR')
+            row.operator('wm.delete_task', icon='TRASH')
 
 
-backend = Backend()
+backend = Backend(insecure=True)
 
 
 def key_path_update_callback(self,  context):
-    file_path = bpy.context.scene.glacier.key_profile_path
+    file_path = bpy.path.abspath(bpy.context.scene.glacier.key_profile_path)
     if not file_path:
         return
     config = open(file_path).read().split('\n')
@@ -415,6 +452,7 @@ classes = (
     GlacierProperties,
     WM_OT_ScheduleTask,
     WM_OT_CancelTask,
+    WM_OT_DeleteTask,
     WM_OT_DownloadTaskResult,
     RENDER_PT_MainPanel,
     RENDER_PT_ManagementPanel,

@@ -34,6 +34,17 @@ class RenderBus(RenderConfig):
                 is_last_cycle_full = False
                 time.sleep(0.5)
 
+    def delete_task(self, task_id):
+        for index, task in enumerate(self.tasks):
+            if task.id == task_id:
+                target_index = index
+                break
+        if not target_index:
+            return False
+        self.tasks[target_index].cleanup()
+        self.tasks.pop(target_index)
+        return True
+
 
 render_bus = RenderBus()
 
@@ -109,3 +120,8 @@ class Renderer(RenderConfig):
     def done(self):
         self.state = 'DONE'
         self.update_callback(self.id, self.state)
+
+    def cleanup(self):
+        os.rmdir(self.output_dir)
+        os.rmdir(self.tar_path)
+        os.rmdir(self.blend_file_path)
