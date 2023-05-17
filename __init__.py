@@ -42,7 +42,7 @@ logger = logging.getLogger(__name__)
 
 class Backend:
     def __init__(self, no_write=False, insecure=False):
-        self.task_refresh_delay = 0.5
+        self.task_refresh_delay = 0.2
         self.cmd_refresh_delay = 0.1
         self.no_write = no_write
         self.is_alive = False

@@ -95,6 +95,7 @@ class AuthManager:
         return bool(self.db.get_tasks_by_session_id(session_id))
 
     def delete_task(self, task_id):
+        self.render_bus.tasks_by_id[task_id].kill()
         self.db.delete_task_by_id(task_id)
         self.render_bus.delete_task(task_id)
 
