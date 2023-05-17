@@ -143,7 +143,7 @@ class ListHandler(tornado.web.RequestHandler):
             self.finish('Unauthorized')
             return
         if not auth.is_task_by_session_id(session_id):
-            self.write(json.dumps({}))
+            self.write(json.dumps([]))
             return
         task_list = [task.as_dict() for task in auth.db.get_tasks_by_session_id(session_id)]
         for task in task_list:

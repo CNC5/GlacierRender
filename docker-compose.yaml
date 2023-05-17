@@ -12,8 +12,13 @@ services:
       - UPLOAD_FACILITY=/tmp
     networks:
       - glacier-backbone
-    stdin_open: true
-    tty: true
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              device_ids: [ '0' ]
+              capabilities: [ gpu ]
   postgres:
     image: postgres
     environment:
