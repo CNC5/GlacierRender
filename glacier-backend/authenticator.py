@@ -62,7 +62,7 @@ class AuthManager:
     def is_session_by_username(self, username):
         return bool(self.db.get_sessions_by_username(username))
 
-    def is_session(self, session_id):
+    def is_session_id(self, session_id):
         return bool(self.db.get_session_by_id(session_id))
 
     def delete_session(self, session_id):
@@ -90,7 +90,7 @@ class AuthManager:
         logger.info(f'task {task_id} state changed to {new_state}')
         self.db.update_task_state(task_id, new_state)
 
-    def is_task(self, task_id):
+    def is_task_id(self, task_id):
         return bool(self.db.get_task_by_id(task_id))
 
     def is_task_by_session_id(self, session_id):

@@ -49,7 +49,7 @@ class SessionRemoveHandler(tornado.web.RequestHandler):
             self.set_status(404)
             self.finish('Session does not exist')
             return
-        if auth.is_session(session_id):
+        if auth.is_session_id(session_id):
             auth.delete_session(session_id)
             self.write(json.dumps({'session_id': session_id}))
 
@@ -75,7 +75,7 @@ class SpawnHandler(tornado.web.RequestHandler):
         start_frame = self.get_argument('start_frame')
         end_frame = self.get_argument('end_frame')
         task_name = self.get_argument('task_name')
-        if not auth.is_session(session_id):
+        if not auth.is_session_id(session_id):
             self.set_status(401)
             self.finish('Unauthorized')
             return
@@ -92,7 +92,7 @@ class StatHandler(tornado.web.RequestHandler):
     def get(self):
         session_id = self.get_argument('session_id')
         task_id = self.get_argument('task_id')
-        if not auth.is_session(session_id) or not auth.is_task(task_id):
+        if not auth.is_session_id(session_id) or not auth.is_task_id(task_id):
             self.set_status(401)
             self.finish('Unauthorized')
             return
@@ -107,7 +107,7 @@ class ResultHandler(tornado.web.RequestHandler):
     def get(self):
         session_id = self.get_argument('session_id')
         task_id = self.get_argument('task_id')
-        if not auth.is_session(session_id) or not auth.is_task(task_id):
+        if not auth.is_session_id(session_id) or not auth.is_task_id(task_id):
             self.set_status(401)
             self.finish('Unauthorized')
             return
@@ -127,11 +127,11 @@ class KillHandler(tornado.web.RequestHandler):
     def get(self):
         session_id = self.get_argument('session_id')
         task_id = self.get_argument('task_id')
-        if not auth.is_session(session_id):
+        if not auth.is_session_id(session_id):
             self.set_status(401)
             self.finish('Unauthorized')
             return
-        if not auth.is_task(task_id):
+        if not auth.is_task_id(task_id):
             self.set_status(404)
             self.finish('Task does not exist')
             return
@@ -142,7 +142,7 @@ class KillHandler(tornado.web.RequestHandler):
 class ListHandler(tornado.web.RequestHandler):
     def get(self):
         session_id = self.get_argument('session_id')
-        if not auth.is_session(session_id):
+        if not auth.is_session_id(session_id):
             self.set_status(401)
             self.finish('Unauthorized')
             return
@@ -161,16 +161,16 @@ class DeleteHandler(tornado.web.RequestHandler):
     def get(self):
         session_id = self.get_argument('session_id')
         task_id = self.get_argument('task_id')
-        if not auth.is_session(session_id):
+        if not auth.is_session_id(session_id):
             self.set_status(401)
             self.finish('Unauthorized')
             return
-        if not auth.is_task(task_id):
+        if not auth.is_task_id(task_id):
             self.set_status(404)
             self.finish('Task does not exist')
             return
-        auth.tasks_by_id.pop(task_id)
         auth.render_bus.delete_task(task_id)
+        del auth.tasks_by_id[task_id]
         self.write(json.dumps({'task_id': task_id}))
 
 
